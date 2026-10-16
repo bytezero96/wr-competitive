@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080d18">
+    <meta name="description" content="WR Competitive — ranking competitivo de X1 de Wild Rift.">
+
+    <title>WR Competitive — Ranking X1</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header class="topbar">
+        <a href="#" class="brand" aria-label="WR Competitive - Início">
+            <span class="brand-icon">X1</span>
+            <span>WR <b>COMPETITIVE</b></span>
+        </a>
+
+        <button id="adminBtn" class="admin-btn" type="button">
+            ⚙ Administração
+        </button>
+    </header>
+
+    <main class="container">
+
+        <!-- APRESENTAÇÃO -->
+        <section class="hero">
+            <div>
+                <span class="eyebrow">WILD RIFT • COMPETITIVO</span>
+                <h1>RANKING <span>X1</span></h1>
+                <p>Uma batalha. Um vencedor. Uma posição a conquistar.</p>
+            </div>
+
+            <div class="season">
+                <span class="live-dot"></span>
+                <span>TEMPORADA 01</span>
+            </div>
+        </section>
+
+        <!-- ESTATÍSTICAS -->
+        <section class="stats-grid" aria-label="Estatísticas do ranking">
+
+            <article class="stat-card">
+                <span>JOGADORES</span>
+                <strong id="totalPlayers">0</strong>
+                <small>Competidores cadastrados</small>
+            </article>
+
+            <article class="stat-card">
+                <span>PARTIDAS</span>
+                <strong id="totalMatches">0</strong>
+                <small>Resultados individuais registrados</small>
+            </article>
+
+            <article class="stat-card">
+                <span>LÍDER DO RANKING</span>
+                <strong id="leaderName">—</strong>
+                <small id="leaderPoints">0 pontos</small>
+            </article>
+
+        </section>
+
+        <!-- RANKING PRINCIPAL -->
+        <section class="panel">
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">CLASSIFICAÇÃO OFICIAL</span>
+                    <h2>Ranking de jogadores</h2>
+                </div>
+
+                <span class="counter" id="rankingCount">0 jogadores</span>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>JOGADOR</th>
+                            <th>PONTOS</th>
+                            <th>V / D</th>
+                            <th>APROV.</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="rankingBody"></tbody>
+                </table>
+            </div>
+
+            <div id="emptyRanking" class="empty-state hidden">
+                Nenhum jogador cadastrado ainda.
+            </div>
+        </section>
+
+        <!-- ELOS -->
+        <section class="ranks-section">
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">ESCALADA COMPETITIVA</span>
+                    <h2>Os seis elos</h2>
+                </div>
+            </div>
+
+            <div id="ranksGrid" class="ranks-grid"></div>
+        </section>
+
+        <!-- PAINEL ADMINISTRATIVO -->
+        <section id="adminPanel" class="panel hidden">
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">ACESSO RESTRITO</span>
+                    <h2>Painel administrativo</h2>
+                </div>
+
+                <button id="logoutBtn" class="secondary-btn" type="button">
+                    Sair
+                </button>
+            </div>
+
+            <!-- CADASTRO DE JOGADORES -->
+            <div class="admin-grid">
+                <form id="playerForm" class="form-card">
+                    <h3>Cadastrar jogador</h3>
+
+                    <label for="playerName">Nome do jogador</label>
+
+                    <input
+                        id="playerName"
+                        name="playerName"
+                        maxlength="24"
+                        placeholder="Ex.: Henrique"
+                        autocomplete="off"
+                        required
+                    >
+
+                    <button class="primary-btn" type="submit">
+                        + Adicionar jogador
+                    </button>
+                </form>
+            </div>
+
+            <!-- GERENCIAMENTO INDIVIDUAL -->
+            <div class="history-admin">
+                <h3>Gerenciar jogadores</h3>
+
+                <p class="form-hint">
+                    Registre vitórias e derrotas, adicione pontos manualmente
+                    e acompanhe o rank atualizado de cada jogador.
+                </p>
+
+                <div id="adminHistory"></div>
+            </div>
+
+        </section>
+
+        <!-- RODAPÉ -->
+        <footer>
+            <span>WR COMPETITIVE</span>
+            <span>Sistema independente de X1 • Projeto demonstrativo</span>
+        </footer>
+
+    </main>
+
+    <!-- AVISOS -->
+    <div
+        id="toast"
+        class="toast"
+        role="status"
+        aria-live="polite">
+    </div>
+
+    <!-- Firebase utiliza módulos JavaScript -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
