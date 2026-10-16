@@ -1,148 +1,1071 @@
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#080d18">
-    <meta name="description" content="WR Competitive — ranking competitivo de X1 de Wild Rift.">
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-    <title>WR Competitive — Ranking X1</title>
+:root {
+  --bg: #080d18;
+  --panel: #101827;
+  --panel-light: #151f31;
+  --border: #263449;
+  --text: #f2f5fb;
+  --muted: #8b9bb3;
+  --cyan: #43d9f5;
+  --cyan-dark: #087eaa;
+  --gold: #e8bc65;
+  --green: #4ce0a0;
+  --red: #ff7087;
 
-    <link rel="stylesheet" href="style.css">
-</head>
+  --font-ui: 'Inter', Arial, sans-serif;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+}
 
-<body>
-    <header class="topbar">
-        <a href="#" class="brand" aria-label="WR Competitive - Início">
-            <span class="brand-icon">X1</span>
-            <span>WR <b>COMPETITIVE</b></span>
-        </a>
+* {
+  box-sizing: border-box;
+}
 
-        <button id="adminBtn" class="admin-btn" type="button">
-            Login
-        </button>
-    </header>
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+  background-color: var(--bg);
+  overscroll-behavior: none;
+}
 
-    <main class="container">
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 100%;
+  overflow-x: clip;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 
-        <section class="hero">
-            <div>
-                <span class="eyebrow">WILD RIFT • COMPETITIVO</span>
-                <h1>RANKING <span>X1</span></h1>
-                <p>Uma batalha. Um vencedor. Uma posição a conquistar.</p>
-            </div>
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  background-color: var(--bg);
+  overscroll-behavior: none;
 
-            <div class="season">
-                <span class="live-dot"></span>
-                <span>TEMPORADA 01</span>
-            </div>
-        </section>
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 
-        <section class="stats-grid" aria-label="Estatísticas do ranking">
-            <article class="stat-card">
-                <span>JOGADORES</span>
-                <strong id="totalPlayers">0</strong>
-                <small>Competidores cadastrados</small>
-            </article>
+button,
+input {
+  font: inherit;
+}
 
-            <article class="stat-card">
-                <span>PARTIDAS</span>
-                <strong id="totalMatches">0</strong>
-                <small>Resultados individuais registrados</small>
-            </article>
+button {
+  cursor: pointer;
+}
 
-            <article class="stat-card">
-                <span>LÍDER DO RANKING</span>
-                <strong id="leaderName">—</strong>
-                <small id="leaderPoints">0 pontos</small>
-            </article>
-        </section>
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
 
-        <section class="panel">
-            <div class="section-heading">
-                <div>
-                    <span class="eyebrow">CLASSIFICAÇÃO OFICIAL</span>
-                    <h2>Ranking de jogadores</h2>
-                </div>
+::selection {
+  color: #07111d;
+  background: var(--cyan);
+}
 
-                <span class="counter" id="rankingCount">0 jogadores</span>
-            </div>
+.hidden {
+  display: none !important;
+}
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>JOGADOR</th>
-                            <th>PONTOS</th>
-                            <th>V / D</th>
-                            <th>APROV.</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rankingBody"></tbody>
-                </table>
-            </div>
+/* CABEÇALHO */
 
-            <div id="emptyRanking" class="empty-state hidden">
-                Nenhum jogador cadastrado ainda.
-            </div>
-        </section>
+.topbar {
+  min-height: 76px;
+  padding: 0 6%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+  background: #0c1422;
+  border-bottom: 1px solid #263449;
+}
 
-        <section id="adminPanel" class="panel hidden">
-            <div class="section-heading">
-                <div>
-                    <span class="eyebrow">ACESSO RESTRITO</span>
-                    <h2>Painel administrativo</h2>
-                </div>
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
 
-                <button id="logoutBtn" class="secondary-btn" type="button">
-                    Sair
-                </button>
-            </div>
+.brand b {
+  color: var(--cyan);
+}
 
-            <div class="admin-grid">
-                <form id="playerForm" class="form-card">
-                    <h3>Cadastrar jogador</h3>
+.brand-icon {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  color: #071521;
+  background: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 900;
+  font-style: italic;
+  clip-path: polygon(15% 0, 100% 0, 85% 100%, 0 100%);
+}
 
-                    <label for="playerName">Nome do jogador</label>
+.admin-btn,
+.secondary-btn {
+  padding: 11px 17px;
+  color: var(--text);
+  background: #151f30;
+  border: 1px solid #33445b;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
 
-                    <input
-                        id="playerName"
-                        name="playerName"
-                        maxlength="24"
-                        placeholder="Ex.: Henrique"
-                        autocomplete="off"
-                        required
-                    >
+.admin-btn:hover,
+.secondary-btn:hover {
+  color: var(--cyan);
+  border-color: var(--cyan-dark);
+  background: #19283a;
+}
 
-                    <button class="primary-btn" type="submit">
-                        + Adicionar jogador
-                    </button>
-                </form>
-            </div>
+/* CONTEÚDO PRINCIPAL */
 
-            <div class="history-admin">
-                <h3>Gerenciar jogadores</h3>
+.container {
+  width: min(1180px, 92%);
+  margin: 0 auto;
+}
 
-                <p class="form-hint">
-                    Registre vitórias e derrotas, adicione pontos manualmente
-                    e acompanhe o desempenho de cada jogador.
-                </p>
+.hero {
+  padding: 55px 0 36px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
 
-                <div id="adminHistory"></div>
-            </div>
-        </section>
+.eyebrow {
+  display: inline-block;
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
 
-        <footer>
-            <span>WR COMPETITIVE</span>
-            <span>Sistema independente de X1 • Projeto demonstrativo</span>
-        </footer>
+h1 {
+  margin: 12px 0;
+  font-family: var(--font-display);
+  font-size: clamp(44px, 6vw, 76px);
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: -1px;
+  text-transform: uppercase;
+}
 
-    </main>
+h1 span {
+  color: var(--cyan);
+}
 
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+.hero p {
+  max-width: 620px;
+  margin: 0;
+  color: #9eafc6;
+  line-height: 1.8;
+}
 
-    <script type="module" src="script.js"></script>
-</body>
-</html>
+.season {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  color: #d1deee;
+  background: #111c2c;
+  border: 1px solid #2b3c52;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+/* ESTATÍSTICAS */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.stat-card,
+.panel {
+  position: relative;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.stat-card {
+  padding: 23px;
+  transition: border-color 0.2s;
+}
+
+.stat-card::before,
+.stat-card::after {
+  content: none;
+}
+
+.stat-card:hover {
+  border-color: #3b536e;
+}
+
+.stat-card > span {
+  display: block;
+  color: #a0b2c9;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+}
+
+.stat-card strong {
+  display: block;
+  margin: 16px 0 9px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(30px, 3vw, 40px);
+  line-height: 1;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.stat-card small {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* PAINÉIS E TÍTULOS */
+
+.panel {
+  padding: 25px;
+  margin-bottom: 26px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+h2 {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.counter {
+  padding: 8px 11px;
+  color: var(--cyan);
+  background: #111e2d;
+  border: 1px solid #2b4056;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* TABELA DE RANKING */
+
+.table-wrap {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #26364c;
+  border-radius: 4px;
+  background: #0b1220;
+}
+
+.table-wrap table {
+  width: 100%;
+  min-width: 600px;
+  table-layout: auto;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table-wrap th {
+  padding: 15px 10px;
+  color: #a3b5cb;
+  background: #151f30;
+  border-bottom: 1px solid #304057;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.table-wrap td {
+  padding: 15px 10px;
+  color: #dce6f4;
+  border-bottom: 1px solid #202d40;
+  vertical-align: middle;
+}
+
+.table-wrap th,
+.table-wrap td {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.table-wrap tbody tr {
+  background: #0c1422;
+  transition: background 0.18s;
+}
+
+.table-wrap tbody tr:nth-child(even) {
+  background: #101a29;
+}
+
+.table-wrap tbody tr:hover {
+  background: #17263a;
+}
+
+.table-wrap tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-wrap th:nth-child(1),
+.table-wrap td:nth-child(1) {
+  width: 48px;
+  min-width: 48px;
+  padding-left: 10px;
+  padding-right: 6px;
+}
+
+.table-wrap th:nth-child(2),
+.table-wrap td:nth-child(2) {
+  min-width: 150px;
+  padding-left: 10px;
+  padding-right: 12px;
+}
+
+.table-wrap th:nth-child(3),
+.table-wrap td:nth-child(3) {
+  min-width: 90px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.table-wrap th:nth-child(4),
+.table-wrap td:nth-child(4) {
+  min-width: 85px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.table-wrap th:nth-child(5),
+.table-wrap td:nth-child(5) {
+  min-width: 105px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+/* POSIÇÕES DO RANKING */
+
+.ranking-position {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 29px;
+  min-height: 29px;
+  color: #92a4bc;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.ranking-position.position-1 {
+  color: var(--gold);
+}
+
+.ranking-position.position-2 {
+  color: #d4e0ed;
+}
+
+.ranking-position.position-3 {
+  color: #d99b76;
+}
+
+/* NOMES DOS JOGADORES */
+
+.player-cell {
+  min-width: 0;
+  white-space: normal;
+}
+
+.player-cell > strong {
+  display: block;
+  color: #f4f8ff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.player-cell > div {
+  margin-top: 6px;
+}
+
+/* PONTOS, VITÓRIAS E DERROTAS */
+
+.points-value {
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.wins-value {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.losses-value {
+  color: var(--red);
+  font-weight: 800;
+}
+
+.empty-state {
+  padding: 30px 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* PAINEL ADMINISTRATIVO */
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 16px;
+}
+
+.form-card {
+  min-width: 0;
+  padding: 22px;
+  background: #111b2a;
+  border: 1px solid #293b52;
+  border-radius: 4px;
+}
+
+.form-card h3,
+.history-admin h3 {
+  margin: 0 0 20px;
+  color: #eaf4ff;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+label {
+  display: block;
+  margin: 14px 0 8px;
+  color: #b7c7da;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  color: var(--text);
+  background: #090f1b;
+  border: 1px solid #304158;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus {
+  border-color: var(--cyan);
+}
+
+input::placeholder {
+  color: #657891;
+}
+
+.primary-btn {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px;
+  color: #071521;
+  background: var(--cyan);
+  border: 1px solid var(--cyan);
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.primary-btn:hover {
+  background: #70e4f7;
+  border-color: #70e4f7;
+}
+
+.primary-btn:active {
+  transform: scale(0.99);
+}
+
+.form-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+/* GERENCIAMENTO DE JOGADORES */
+
+.history-admin {
+  margin-top: 28px;
+}
+
+.individual-player-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  padding: 21px 0;
+  border-bottom: 1px solid #263449;
+}
+
+.individual-player-info {
+  min-width: 0;
+}
+
+.individual-player-info h4 {
+  margin: 0;
+  color: #f1f6ff;
+  font-size: 15px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.individual-player-rank {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--cyan);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.individual-player-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.individual-player-stats strong {
+  color: var(--text);
+}
+
+.individual-player-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.individual-player-actions button {
+  width: auto;
+  margin-top: 0;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+.edit-player-btn,
+.remove-player-btn {
+  padding: 10px 14px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.edit-player-btn {
+  color: var(--cyan);
+  background: #122337;
+  border: 1px solid #2b536b;
+}
+
+.edit-player-btn:hover {
+  background: #192e43;
+  border-color: var(--cyan);
+}
+
+.remove-player-btn {
+  color: var(--red);
+  background: #251721;
+  border: 1px solid #583344;
+}
+
+.remove-player-btn:hover {
+  background: #351e29;
+  border-color: var(--red);
+}
+
+.manual-points-form {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.manual-points-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.manual-points-controls input {
+  flex: 1;
+  width: auto;
+}
+
+.manual-points-controls button {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 10px 16px;
+}
+
+/* RODAPÉ */
+
+.site-footer {
+  width: min(1180px, 92%);
+  margin: 0 auto;
+  padding: 22px 0 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+
+  border-top: 1px solid var(--border);
+}
+
+/* COPYRIGHT MAIS DISCRETO */
+
+.footer-brand {
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.6;
+  text-transform: none;
+}
+
+.footer-version {
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.footer-credit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  color: var(--cyan);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.footer-social-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: block;
+}
+
+.footer-separator {
+  color: var(--muted);
+}
+
+/* NOTIFICAÇÕES */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 10;
+  width: max-content;
+  max-width: 90%;
+  padding: 13px 18px;
+  color: #d9fff0;
+  text-align: center;
+  background: #15332e;
+  border: 1px solid #337d6c;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px #00000030;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 20px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* LOGIN ADMINISTRATIVO */
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #020711e8;
+  backdrop-filter: blur(5px);
+}
+
+.login-modal {
+  position: relative;
+  width: min(100%, 420px);
+  padding: 30px;
+  background: #111c2c;
+  border: 1px solid #34465e;
+  border-radius: 5px;
+  box-shadow: 0 20px 55px #00000055;
+}
+
+.login-modal h2 {
+  margin: 12px 0;
+}
+
+.login-modal .form-hint {
+  margin-bottom: 20px;
+}
+
+.login-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  color: #a2b1c6;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.login-close:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: #192435;
+}
+
+.login-error {
+  min-height: 18px;
+  margin: 14px 0 0;
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* TABLETS */
+
+@media (max-width: 1000px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* CELULARES */
+
+@media (max-width: 560px) {
+  .topbar {
+    min-height: 64px;
+    padding: 0 4%;
+  }
+
+  .brand {
+    gap: 8px;
+    font-size: 17px;
+  }
+
+  .brand-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+  }
+
+  .admin-btn {
+    padding: 10px;
+    font-size: 11px;
+  }
+
+  .container {
+    width: 92%;
+  }
+
+  .hero {
+    padding-top: 36px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 17px;
+  }
+
+  h1 {
+    font-size: clamp(38px, 12vw, 54px);
+    letter-spacing: -0.5px;
+  }
+
+  .hero p {
+    font-size: 13px;
+  }
+
+  .season {
+    padding: 9px 11px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 15px;
+  }
+
+  .stat-card strong {
+    font-size: 28px;
+  }
+
+  .stat-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .panel {
+    padding: 16px 12px;
+  }
+
+  h2 {
+    font-size: 23px;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+  }
+
+  .counter {
+    padding: 7px 8px;
+    font-size: 10px;
+  }
+
+  .table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .table-wrap table {
+    width: 100%;
+    min-width: 600px;
+    table-layout: auto;
+  }
+
+  .table-wrap th,
+  .table-wrap td {
+    padding: 10px 7px;
+    font-size: 11px;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .table-wrap th {
+    font-size: 12px;
+  }
+
+  .table-wrap th:nth-child(1),
+  .table-wrap td:nth-child(1) {
+    width: 48px;
+    min-width: 48px;
+    padding-left: 8px;
+    padding-right: 5px;
+  }
+
+  .table-wrap th:nth-child(2),
+  .table-wrap td:nth-child(2) {
+    min-width: 150px;
+    padding-left: 7px;
+    padding-right: 10px;
+  }
+
+  .table-wrap th:nth-child(3),
+  .table-wrap td:nth-child(3) {
+    min-width: 90px;
+  }
+
+  .table-wrap th:nth-child(4),
+  .table-wrap td:nth-child(4) {
+    min-width: 85px;
+  }
+
+  .table-wrap th:nth-child(5),
+  .table-wrap td:nth-child(5) {
+    min-width: 105px;
+  }
+
+  .table-wrap .player-cell > strong {
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .individual-player-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .individual-player-actions button {
+    width: 100%;
+    padding: 11px 6px;
+    font-size: 11px;
+  }
+
+  .individual-player-stats {
+    gap: 10px 14px;
+  }
+
+  .manual-points-controls {
+    gap: 8px;
+  }
+
+  .manual-points-controls button {
+    padding: 10px;
+  }
+
+  /* RODAPÉ NO CELULAR */
+
+  .site-footer {
+    justify-content: center;
+    padding: 20px 0 28px;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .footer-brand,
+  .footer-version,
+  .footer-credit {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .footer-credit {
+    flex-wrap: wrap;
+    gap: 10px;
+    line-height: 1.8;
+  }
+
+  .login-modal {
+    padding: 26px 20px;
+  }
+}
+
+/* ACESSIBILIDADE: MOVIMENTO REDUZIDO */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
