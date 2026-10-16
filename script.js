@@ -20,7 +20,6 @@ import {
     getFirestore,
     collection,
     doc,
-    getDocs,
     setDoc,
     updateDoc,
     increment,
@@ -40,15 +39,9 @@ const firebaseConfig = {
     projectId: "duelosrankeadoswr",
     storageBucket: "duelosrankeadoswr.firebasestorage.app",
     messagingSenderId: "453903935694",
-    appId: "1:453903935694:web:d0334556ca801b84acc89f",
+    appId: "1:903903935694:web:d0334556ca801b84acc89f",
     measurementId: "G-6ZZ14JXLYB"
 };
-
-/*
-   Este UID identifica a conta autorizada no painel.
-   A segurança real das alterações também é aplicada
-   pelas regras do Cloud Firestore.
-*/
 
 const ADMIN_UID = "U7ohORMjr1O9Ubby2WFMztAe8Au2";
 
@@ -66,35 +59,59 @@ const playersCollection = collection(db, "players");
 const POINTS_PER_WIN = 20;
 const POINTS_PER_LOSS = 15;
 const POINTS_PER_DIVISION = 100;
-
-const LEGACY_STORAGE_KEY = "wrCompetitiveDataV2";
+const POINTS_PER_RANK = 300;
+const MITHRIL_MIN_POINTS = 1500;
 
 const RANKS = [
-    { name: "Papel", color: "#9CA3AF", icon: "◇" },
-    { name: "Madeira", color: "#B8875B", icon: "♜" },
-    { name: "Ferrugem", color: "#C66A45", icon: "◆" },
-    { name: "Plástico", color: "#43D9C5", icon: "⬡" },
-    { name: "Latão", color: "#E8BC65", icon: "✦" },
-    { name: "Mithril", color: "#83BFFF", icon: "✧" }
+    {
+        name: "Papel",
+        color: "#9CA3AF",
+        icon: "◇",
+        min: 0,
+        max: 299
+    },
+    {
+        name: "Madeira",
+        color: "#B8875B",
+        icon: "♜",
+        min: 300,
+        max: 599
+    },
+    {
+        name: "Ferrugem",
+        color: "#C66A45",
+        icon: "◆",
+        min: 600,
+        max: 899
+    },
+    {
+        name: "Plástico",
+        color: "#43D9C5",
+        icon: "⬡",
+        min: 900,
+        max: 1199
+    },
+    {
+        name: "Latão",
+        color: "#E8BC65",
+        icon: "✦",
+        min: 1200,
+        max: 1499
+    },
+    {
+        name: "Mithril",
+        color: "#83BFFF",
+        icon: "✧",
+        min: MITHRIL_MIN_POINTS,
+        max: Infinity
+    }
 ];
 
-const INITIAL_PLAYERS = [
-    { id: "micke", name: "Micke" },
-    { id: "iago", name: "Iago" },
-    { id: "gus", name: "Gus" },
-    { id: "derek", name: "Derek" },
-    { id: "henrique", name: "Henrique" },
-    { id: "yohan", name: "Yohan" }
+const DIVISIONS = [
+    { name: "III", index: 0 },
+    { name: "II", index: 1 },
+    { name: "I", index: 2 }
 ];
-
-const INITIAL_STATS = {
-    micke: { wins: 4, losses: 4 },
-    henrique: { wins: 4, losses: 4 },
-    derek: { wins: 3, losses: 1 },
-    iago: { wins: 2, losses: 3 },
-    gus: { wins: 0, losses: 1 },
-    yohan: { wins: 1, losses: 2 }
-};
 
 
 /* =========================================
@@ -111,8 +128,8 @@ let isAdmin = false;
 let initialized = false;
 let toastTimeout = null;
 let unsubscribePlayers = null;
-let seedingInProgress = false;
-let loadingError = false;
+let selectedRankIndex = null;
+let selectedDivisionIndex = 0;
 
 
 /* =========================================
@@ -140,7 +157,7 @@ function normalizeNumber(value) {
         return 0;
     }
 
-    return Math.max(0, Math.floor(number));
+    return Math.floor(number);
 }
 
 function generatePlayerId() {
@@ -150,6 +167,10 @@ function generatePlayerId() {
 
     return "player-" + Date.now() + "-" +
         Math.random().toString(36).slice(2, 10);
+}
+
+function getPlayer(playerId) {
+    return data.players.find(player => player.id === playerId);
 }
 
 
@@ -177,11 +198,50 @@ function showToast(message) {
 
 
 /* =========================================
-   IDENTIFICAÇÃO DOS JOGADORES
+   CÁLCULO DO ELO E DA DIVISÃO
 ========================================= */
 
-function getPlayer(playerId) {
-    return data.players.find(player => player.id === playerId);
+function getRankInfo(points) {
+    /*
+       Mithril começa em 1.500 pontos e não tem divisões.
+       Os cinco elos anteriores têm três divisões de 100 pontos.
+    */
+
+    if (points >= MITHRIL_MIN_POINTS) {
+        return {
+            rankIndex: 5,
+            divisionIndex: null,
+            rank: RANKS[5],
+            division: null
+        };
+    }
+
+    /*
+       Pontuações abaixo de zero permanecem no Papel.
+       O valor real do jogador continua sendo exibido.
+    */
+
+    const safePoints = Math.max(0, points);
+
+    const rankIndex = Math.min(
+        4,
+        Math.floor(safePoints / POINTS_PER_RANK)
+    );
+
+    const pointsInsideRank =
+        safePoints - rankIndex * POINTS_PER_RANK;
+
+    const divisionIndex = Math.min(
+        2,
+        Math.floor(pointsInsideRank / POINTS_PER_DIVISION)
+    );
+
+    return {
+        rankIndex,
+        divisionIndex,
+        rank: RANKS[rankIndex],
+        division: DIVISIONS[divisionIndex].name
+    };
 }
 
 function getPlayerStats() {
@@ -191,20 +251,14 @@ function getPlayerStats() {
             losses: 0
         };
 
-        const wins = normalizeNumber(stats.wins);
-        const losses = normalizeNumber(stats.losses);
-
-        const manualPoints = normalizeNumber(
-            data.manualPoints[player.id]
+        const wins = Math.max(0, normalizeNumber(stats.wins));
+        const losses = Math.max(0, normalizeNumber(stats.losses));
+        const manualPoints = Math.max(
+            0,
+            normalizeNumber(data.manualPoints[player.id])
         );
 
         const played = wins + losses;
-
-        /*
-           Vitória: +20 pontos.
-           Derrota: -15 pontos.
-           Pontos manuais: somados separadamente.
-        */
 
         const points =
             wins * POINTS_PER_WIN -
@@ -215,24 +269,7 @@ function getPlayerStats() {
             ? Math.round((wins / played) * 100)
             : 0;
 
-        const rankIndex = Math.max(
-            0,
-            Math.min(
-                RANKS.length - 1,
-                Math.floor(points / 500)
-            )
-        );
-
-        const divisionIndex = Math.max(
-            0,
-            Math.min(
-                4,
-                Math.floor(
-                    (((points % 500) + 500) % 500) /
-                    POINTS_PER_DIVISION
-                )
-            )
-        );
+        const rankInfo = getRankInfo(points);
 
         return {
             ...player,
@@ -242,10 +279,7 @@ function getPlayerStats() {
             points,
             manualPoints,
             accuracy,
-            rankIndex,
-            divisionIndex,
-            rank: RANKS[rankIndex],
-            division: ["V", "IV", "III", "II", "I"][divisionIndex]
+            ...rankInfo
         };
     }).sort((a, b) =>
         b.points - a.points ||
@@ -257,17 +291,21 @@ function getPlayerStats() {
 
 
 /* =========================================
-   EMBLEMA DE RANK
+   EMBLEMA DO ELO
 ========================================= */
 
 function rankBadge(player) {
+    const divisionText = player.division
+        ? ` ${player.division}`
+        : "";
+
     return `
         <span
             class="rank-badge"
             style="--rank-color:${player.rank.color};color:${player.rank.color}"
         >
             <span class="rank-symbol">${player.rank.icon}</span>
-            ${escapeHTML(player.rank.name)} ${player.division}
+            ${escapeHTML(player.rank.name)}${divisionText}
         </span>
     `;
 }
@@ -287,20 +325,15 @@ function renderRanking() {
 
     const players = getPlayerStats();
 
-    $("totalPlayers").textContent = data.players.length;
+    $("totalPlayers").textContent = players.length;
 
     $("rankingCount").textContent =
-        `${data.players.length} jogador${data.players.length === 1 ? "" : "es"}`;
+        `${players.length} jogador${players.length === 1 ? "" : "es"}`;
 
     const totalResults = players.reduce(
         (total, player) => total + player.played,
         0
     );
-
-    /*
-       Cada vitória ou derrota representa um resultado individual.
-       A contagem segue o comportamento do sistema original.
-    */
 
     $("totalMatches").textContent = totalResults;
 
@@ -323,6 +356,10 @@ function renderRanking() {
                 <span class="player-name">
                     ${escapeHTML(player.name)}
                 </span>
+                <span class="player-sub">
+                    ${escapeHTML(player.rank.name)}
+                    ${player.division ? " " + player.division : ""}
+                </span>
             </td>
 
             <td>
@@ -344,7 +381,7 @@ function renderRanking() {
 
 
 /* =========================================
-   SEÇÃO DE RANKS
+   CARDS DOS SEIS ELOS
 ========================================= */
 
 function renderRanks() {
@@ -355,13 +392,32 @@ function renderRanks() {
     }
 
     grid.innerHTML = RANKS.map((rank, index) => {
-        const start = index * 500;
-        const end = start + 499;
+        const isMithril = index === 5;
+
+        let pointsText;
+
+        if (isMithril) {
+            pointsText = "1.500 pontos ou mais";
+        } else {
+            pointsText = `${rank.min}–${rank.max} pontos`;
+        }
+
+        const divisionText = isMithril
+            ? "Sem divisões"
+            : "Divisões III, II e I";
+
+        const selectedClass =
+            selectedRankIndex === index ? " selected" : "";
 
         return `
             <article
-                class="rank-card"
+                class="rank-card${selectedClass}"
                 style="--rank-color:${rank.color}"
+                data-rank-index="${index}"
+                role="button"
+                tabindex="0"
+                aria-label="Ver jogadores do elo ${rank.name}"
+                aria-pressed="${selectedRankIndex === index}"
             >
                 <div class="rank-emblem">${rank.icon}</div>
 
@@ -369,16 +425,104 @@ function renderRanks() {
                     ${rank.name}
                 </h3>
 
-                <p>Divisões V, IV, III, II e I</p>
-
-                <p>
-                    ${index === 5
-                        ? "2.500–2.899 pontos; divisão I a partir de 2.900"
-                        : `${start}–${end} pontos`}
-                </p>
+                <p>${divisionText}</p>
+                <p>${pointsText}</p>
             </article>
         `;
     }).join("");
+}
+
+
+/* =========================================
+   JOGADORES DE CADA ELO
+========================================= */
+
+function renderRankDetails() {
+    const panel = $("rankDetails");
+    const tabs = $("divisionTabs");
+    const list = $("rankPlayerList");
+    const empty = $("emptyRankPlayers");
+
+    if (!panel || !tabs || !list || !empty) {
+        return;
+    }
+
+    if (
+        selectedRankIndex === null ||
+        !RANKS[selectedRankIndex]
+    ) {
+        panel.classList.add("hidden");
+        return;
+    }
+
+    const rank = RANKS[selectedRankIndex];
+    const isMithril = selectedRankIndex === 5;
+
+    panel.classList.remove("hidden");
+
+    $("rankDetailTitle").textContent =
+        `Elo ${rank.name}`;
+
+    $("rankDetailDescription").textContent = isMithril
+        ? "Todos os jogadores com 1.500 pontos ou mais. Mithril não possui divisões."
+        : `Selecione uma divisão de ${rank.name} para consultar os jogadores e suas pontuações.`;
+
+    if (isMithril) {
+        tabs.innerHTML = "";
+    } else {
+        tabs.innerHTML = DIVISIONS.map(division => `
+            <button
+                type="button"
+                class="division-tab ${
+                    selectedDivisionIndex === division.index ? "active" : ""
+                }"
+                data-division-index="${division.index}"
+                aria-pressed="${
+                    selectedDivisionIndex === division.index
+                }"
+            >
+                Divisão ${division.name}
+            </button>
+        `).join("");
+    }
+
+    const allPlayers = getPlayerStats();
+
+    const filteredPlayers = allPlayers.filter(player => {
+        if (player.rankIndex !== selectedRankIndex) {
+            return false;
+        }
+
+        if (isMithril) {
+            return true;
+        }
+
+        return player.divisionIndex === selectedDivisionIndex;
+    });
+
+    list.innerHTML = filteredPlayers.map((player, index) => `
+        <article class="rank-player-row">
+            <span class="rank-player-position">
+                ${String(index + 1).padStart(2, "0")}
+            </span>
+
+            <div>
+                <div class="rank-player-name">
+                    ${escapeHTML(player.name)}
+                </div>
+
+                <span class="rank-player-meta">
+                    ${player.wins} vitórias · ${player.losses} derrotas
+                </span>
+            </div>
+
+            <span class="rank-player-points">
+                ${player.points.toLocaleString("pt-BR")} pts
+            </span>
+        </article>
+    `).join("");
+
+    empty.classList.toggle("hidden", filteredPlayers.length > 0);
 }
 
 
@@ -419,7 +563,7 @@ function renderAdminHistory() {
 
                 <div class="individual-player-rank">
                     <span style="color:${player.rank.color};font-weight:700">
-                        Rank atual:
+                        Elo atual:
                     </span>
                     ${rankBadge(player)}
                 </div>
@@ -508,11 +652,15 @@ function renderAdminHistory() {
 
 
 /* =========================================
-   AUTORIZAÇÃO DO ADMINISTRADOR
+   AUTORIZAÇÃO ADMINISTRATIVA
 ========================================= */
 
 function requireAdmin() {
-    if (!auth.currentUser || auth.currentUser.uid !== ADMIN_UID || !isAdmin) {
+    if (
+        !auth.currentUser ||
+        auth.currentUser.uid !== ADMIN_UID ||
+        !isAdmin
+    ) {
         showToast("Entre com a conta administrativa autorizada.");
         return false;
     }
@@ -589,14 +737,15 @@ async function addManualPoints(playerId, amount) {
         const playerRef = doc(db, "players", playerId);
 
         await runTransaction(db, async transaction => {
-            const playerSnapshot = await transaction.get(playerRef);
+            const snapshot = await transaction.get(playerRef);
 
-            if (!playerSnapshot.exists()) {
+            if (!snapshot.exists()) {
                 throw new Error("PLAYER_NOT_FOUND");
             }
 
-            const currentPoints = normalizeNumber(
-                playerSnapshot.data().manualPoints
+            const currentPoints = Math.max(
+                0,
+                normalizeNumber(snapshot.data().manualPoints)
             );
 
             if (currentPoints + pointsToAdd > Number.MAX_SAFE_INTEGER) {
@@ -652,9 +801,10 @@ async function addPlayer(event) {
         return;
     }
 
+    const normalizedName = name.toLocaleLowerCase("pt-BR");
+
     const exists = data.players.some(player =>
-        player.name.trim().toLocaleLowerCase("pt-BR") ===
-        name.toLocaleLowerCase("pt-BR")
+        player.name.trim().toLocaleLowerCase("pt-BR") === normalizedName
     );
 
     if (exists) {
@@ -682,215 +832,16 @@ async function addPlayer(event) {
 
 
 /* =========================================
-   RECUPERAÇÃO DE DADOS LOCAIS ANTIGOS
-========================================= */
-
-/*
-   Esta função apenas LÊ os dados antigos.
-   O sistema novo não usa localStorage para salvar
-   nem sincronizar o ranking.
-
-   Os dados locais só são importados quando:
-   1. O administrador está autenticado.
-   2. A coleção Firestore está vazia.
-*/
-
-function loadLegacyData() {
-    try {
-        const saved = localStorage.getItem(LEGACY_STORAGE_KEY);
-
-        if (!saved) {
-            return null;
-        }
-
-        const parsed = JSON.parse(saved);
-
-        if (!parsed || !Array.isArray(parsed.players)) {
-            return null;
-        }
-
-        const validPlayers = parsed.players
-            .filter(player => player && player.name)
-            .map(player => ({
-                id: String(player.id || generatePlayerId())
-                    .replace(/\//g, "-"),
-                name: String(player.name).trim().slice(0, 24)
-            }))
-            .filter(player => player.name.length > 0);
-
-        if (validPlayers.length === 0) {
-            return null;
-        }
-
-        const stats = parsed.stats || {};
-        const manualPoints = parsed.manualPoints || {};
-
-        return {
-            players: validPlayers.map(player => ({
-                ...player,
-                wins: normalizeNumber(stats[player.id]?.wins),
-                losses: normalizeNumber(stats[player.id]?.losses),
-                manualPoints: normalizeNumber(manualPoints[player.id])
-            }))
-        };
-    } catch (error) {
-        console.error("Erro ao recuperar dados locais:", error);
-        return null;
-    }
-}
-
-
-/* =========================================
-   DADOS INICIAIS DO RANKING
-========================================= */
-
-function getInitialPlayers() {
-    const legacyData = loadLegacyData();
-
-    if (legacyData && legacyData.players.length > 0) {
-        return legacyData.players;
-    }
-
-    return INITIAL_PLAYERS.map(player => {
-        const stats = INITIAL_STATS[player.id] || {
-            wins: 0,
-            losses: 0
-        };
-
-        return {
-            ...player,
-            wins: stats.wins,
-            losses: stats.losses,
-            manualPoints: 0
-        };
-    });
-}
-
-
-/* =========================================
-   POPULAR FIRESTORE SE ESTIVER VAZIO
-========================================= */
-
-async function seedFirestoreIfNeeded() {
-    if (!requireAdmin()) {
-        return;
-    }
-
-    if (seedingInProgress) {
-        return;
-    }
-
-    seedingInProgress = true;
-
-    try {
-        const existingPlayers = await getDocs(playersCollection);
-
-        /*
-           Nunca substitui os dados existentes.
-           Se a coleção já tiver documentos, encerra.
-        */
-
-        if (!existingPlayers.empty) {
-            return;
-        }
-
-        const initialPlayers = getInitialPlayers();
-
-        for (const player of initialPlayers) {
-            const id = String(player.id).replace(/\//g, "-");
-
-            await setDoc(doc(db, "players", id), {
-                name: player.name,
-                wins: normalizeNumber(player.wins),
-                losses: normalizeNumber(player.losses),
-                manualPoints: normalizeNumber(player.manualPoints)
-            });
-        }
-
-        showToast("Ranking inicial configurado com sucesso!");
-    } catch (error) {
-        console.error("Erro ao configurar ranking inicial:", error);
-        showToast("Não foi possível configurar o ranking inicial.");
-    } finally {
-        seedingInProgress = false;
-    }
-}
-
-
-/* =========================================
-   SINCRONIZAÇÃO EM TEMPO REAL
-========================================= */
-
-function startPlayersListener() {
-    if (unsubscribePlayers) {
-        unsubscribePlayers();
-    }
-
-    unsubscribePlayers = onSnapshot(
-        playersCollection,
-
-        snapshot => {
-            loadingError = false;
-
-            const players = [];
-            const stats = {};
-            const manualPoints = {};
-
-            snapshot.forEach(documentSnapshot => {
-                const record = documentSnapshot.data();
-                const id = documentSnapshot.id;
-
-                const player = {
-                    id,
-                    name: String(record.name || "Jogador")
-                        .trim()
-                        .slice(0, 24)
-                };
-
-                players.push(player);
-
-                stats[id] = {
-                    wins: normalizeNumber(record.wins),
-                    losses: normalizeNumber(record.losses)
-                };
-
-                manualPoints[id] = normalizeNumber(record.manualPoints);
-            });
-
-            data = {
-                players,
-                stats,
-                manualPoints
-            };
-
-            renderAll();
-
-            /*
-               Se a coleção estiver vazia, somente a conta
-               administrativa poderá criar os dados iniciais.
-            */
-
-            if (snapshot.empty && isAdmin) {
-                seedFirestoreIfNeeded();
-            }
-        },
-
-        error => {
-            console.error("Erro ao sincronizar ranking:", error);
-            loadingError = true;
-            showToast("Erro ao carregar o ranking. Verifique sua conexão.");
-        }
-    );
-}
-
-
-/* =========================================
    LOGIN ADMINISTRATIVO
 ========================================= */
 
 function createAdminLogin() {
     if (isAdmin) {
         $("adminPanel").classList.remove("hidden");
+        $("adminPanel").scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
         return;
     }
 
@@ -914,20 +865,17 @@ function createAdminLogin() {
     `;
 
     overlay.innerHTML = `
-        <form
-            id="adminLoginForm"
-            style="
-                width: 100%;
-                max-width: 360px;
-                padding: 28px;
-                border: 1px solid #263449;
-                border-radius: 16px;
-                background: #101827;
-                color: #f2f5fb;
-                box-shadow: 0 20px 60px rgba(0,0,0,.45);
-                font-family: inherit;
-            "
-        >
+        <form id="adminLoginForm" style="
+            width: 100%;
+            max-width: 360px;
+            padding: 28px;
+            border: 1px solid #263449;
+            border-radius: 16px;
+            background: #101827;
+            color: #f2f5fb;
+            box-shadow: 0 20px 60px rgba(0,0,0,.45);
+            font-family: inherit;
+        ">
             <div style="
                 color: #43d9f5;
                 font-size: 12px;
@@ -948,10 +896,8 @@ function createAdminLogin() {
                 Entre com o e-mail e a senha da conta autorizada.
             </p>
 
-            <label
-                for="adminEmailInput"
-                style="display:block;margin-bottom:8px;font-size:13px;"
-            >
+            <label for="adminEmailInput"
+                style="display:block;margin-bottom:8px;font-size:13px;">
                 E-mail administrativo
             </label>
 
@@ -974,10 +920,8 @@ function createAdminLogin() {
                 "
             >
 
-            <label
-                for="adminPasswordInput"
-                style="display:block;margin-bottom:8px;font-size:13px;"
-            >
+            <label for="adminPasswordInput"
+                style="display:block;margin-bottom:8px;font-size:13px;">
                 Senha
             </label>
 
@@ -1000,50 +944,39 @@ function createAdminLogin() {
                 "
             >
 
-            <p
-                id="adminLoginError"
-                style="
-                    display: none;
-                    color: #ff7087;
-                    font-size: 13px;
-                    margin: 0 0 12px;
-                    line-height: 1.5;
-                "
-            ></p>
+            <p id="adminLoginError" style="
+                display: none;
+                color: #ff7087;
+                font-size: 13px;
+                margin: 0 0 12px;
+                line-height: 1.5;
+            "></p>
 
-            <button
-                type="submit"
-                id="adminLoginSubmit"
-                style="
-                    width: 100%;
-                    padding: 13px;
-                    border: 0;
-                    border-radius: 9px;
-                    background: #43d9f5;
-                    color: #080d18;
-                    font: inherit;
-                    font-weight: 800;
-                    cursor: pointer;
-                    margin-bottom: 10px;
-                "
-            >
+            <button type="submit" id="adminLoginSubmit" style="
+                width: 100%;
+                padding: 13px;
+                border: 0;
+                border-radius: 9px;
+                background: #43d9f5;
+                color: #080d18;
+                font: inherit;
+                font-weight: 800;
+                cursor: pointer;
+                margin-bottom: 10px;
+            ">
                 Entrar no painel
             </button>
 
-            <button
-                type="button"
-                id="cancelAdminLogin"
-                style="
-                    width: 100%;
-                    padding: 11px;
-                    border: 1px solid #263449;
-                    border-radius: 9px;
-                    background: transparent;
-                    color: #f2f5fb;
-                    font: inherit;
-                    cursor: pointer;
-                "
-            >
+            <button type="button" id="cancelAdminLogin" style="
+                width: 100%;
+                padding: 11px;
+                border: 1px solid #263449;
+                border-radius: 9px;
+                background: transparent;
+                color: #f2f5fb;
+                font: inherit;
+                cursor: pointer;
+            ">
                 Cancelar
             </button>
         </form>
@@ -1070,14 +1003,8 @@ function createAdminLogin() {
                 password
             );
 
-            /*
-               Mesmo que alguém tenha uma conta no Firebase,
-               somente o UID autorizado pode abrir o painel.
-            */
-
             if (credential.user.uid !== ADMIN_UID) {
                 await signOut(auth);
-
                 throw new Error("NOT_AUTHORIZED");
             }
 
@@ -1094,14 +1021,11 @@ function createAdminLogin() {
                 error.code === "auth/user-not-found" ||
                 error.code === "auth/invalid-email"
             ) {
-                errorElement.textContent =
-                    "E-mail ou senha incorretos.";
+                errorElement.textContent = "E-mail ou senha incorretos.";
             } else if (error.code === "auth/too-many-requests") {
                 errorElement.textContent =
                     "Muitas tentativas. Aguarde um pouco e tente novamente.";
-            } else if (
-                error.code === "auth/network-request-failed"
-            ) {
+            } else if (error.code === "auth/network-request-failed") {
                 errorElement.textContent =
                     "Falha de conexão. Verifique sua internet.";
             } else {
@@ -1145,6 +1069,7 @@ async function closeAdmin() {
         return;
     }
 
+    isAdmin = false;
     $("adminPanel").classList.add("hidden");
 
     const overlay = $("adminLoginOverlay");
@@ -1153,6 +1078,7 @@ async function closeAdmin() {
         overlay.remove();
     }
 
+    renderAdminHistory();
     showToast("Sessão administrativa encerrada.");
 }
 
@@ -1166,13 +1092,125 @@ function toggleAdmin() {
 
 
 /* =========================================
+   EVENTOS DOS ELOS
+========================================= */
+
+function handleRankGridClick(event) {
+    const card = event.target.closest("[data-rank-index]");
+
+    if (!card) {
+        return;
+    }
+
+    openRank(card.dataset.rankIndex);
+}
+
+function handleRankGridKeydown(event) {
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+
+    const card = event.target.closest("[data-rank-index]");
+
+    if (!card) {
+        return;
+    }
+
+    event.preventDefault();
+    openRank(card.dataset.rankIndex);
+}
+
+function openRank(rankIndex) {
+    const index = Number(rankIndex);
+
+    if (!Number.isInteger(index) || !RANKS[index]) {
+        return;
+    }
+
+    selectedRankIndex = index;
+    selectedDivisionIndex = 0;
+
+    renderRanks();
+    renderRankDetails();
+
+    $("rankDetails").scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+}
+
+function closeRankDetails() {
+    selectedRankIndex = null;
+
+    renderRanks();
+    renderRankDetails();
+}
+
+
+/* =========================================
    RENDERIZAÇÃO GERAL
 ========================================= */
 
 function renderAll() {
     renderRanking();
     renderRanks();
+    renderRankDetails();
     renderAdminHistory();
+}
+
+
+/* =========================================
+   SINCRONIZAÇÃO EM TEMPO REAL
+========================================= */
+
+function startPlayersListener() {
+    if (unsubscribePlayers) {
+        unsubscribePlayers();
+    }
+
+    unsubscribePlayers = onSnapshot(
+        playersCollection,
+
+        snapshot => {
+            const players = [];
+            const stats = {};
+            const manualPoints = {};
+
+            snapshot.forEach(documentSnapshot => {
+                const record = documentSnapshot.data();
+                const id = documentSnapshot.id;
+
+                players.push({
+                    id,
+                    name: String(record.name || "Jogador")
+                        .trim()
+                        .slice(0, 24)
+                });
+
+                stats[id] = {
+                    wins: normalizeNumber(record.wins),
+                    losses: normalizeNumber(record.losses)
+                };
+
+                manualPoints[id] = normalizeNumber(record.manualPoints);
+            });
+
+            data = {
+                players,
+                stats,
+                manualPoints
+            };
+
+            renderAll();
+        },
+
+        error => {
+            console.error("Erro ao sincronizar ranking:", error);
+            showToast(
+                "Erro ao carregar o ranking. Verifique sua conexão e as regras do Firebase."
+            );
+        }
+    );
 }
 
 
@@ -1182,9 +1220,8 @@ function renderAll() {
 
 function listenToAuthentication() {
     onAuthStateChanged(auth, async user => {
-        const previousAdminState = isAdmin;
-
         if (user && user.uid === ADMIN_UID) {
+            const wasAdmin = isAdmin;
             isAdmin = true;
 
             const overlay = $("adminLoginOverlay");
@@ -1194,28 +1231,24 @@ function listenToAuthentication() {
             }
 
             $("adminPanel").classList.remove("hidden");
-
             renderAdminHistory();
 
-            if (!previousAdminState) {
+            if (!wasAdmin) {
                 showToast("Acesso administrativo autorizado!");
             }
-
-            await seedFirestoreIfNeeded();
-
         } else {
             isAdmin = false;
             $("adminPanel").classList.add("hidden");
             renderAdminHistory();
 
-            /*
-               Uma conta diferente da autorizada não permanece
-               autenticada neste painel administrativo.
-            */
-
             if (user) {
                 showToast("Conta sem autorização administrativa.");
-                await signOut(auth);
+
+                try {
+                    await signOut(auth);
+                } catch (error) {
+                    console.error("Erro ao encerrar conta não autorizada:", error);
+                }
             }
         }
     });
@@ -1246,6 +1279,13 @@ function initialize() {
         "rankingCount",
         "emptyRanking",
         "ranksGrid",
+        "rankDetails",
+        "rankDetailTitle",
+        "rankDetailDescription",
+        "divisionTabs",
+        "rankPlayerList",
+        "emptyRankPlayers",
+        "closeRankDetails",
         "toast"
     ];
 
@@ -1256,7 +1296,6 @@ function initialize() {
             "WR Competitive: elementos não encontrados no HTML:",
             missing.join(", ")
         );
-
         return;
     }
 
@@ -1265,6 +1304,28 @@ function initialize() {
     $("playerForm").addEventListener("submit", addPlayer);
     $("adminBtn").addEventListener("click", toggleAdmin);
     $("logoutBtn").addEventListener("click", closeAdmin);
+
+    $("ranksGrid").addEventListener("click", handleRankGridClick);
+    $("ranksGrid").addEventListener("keydown", handleRankGridKeydown);
+
+    $("closeRankDetails").addEventListener("click", closeRankDetails);
+
+    $("divisionTabs").addEventListener("click", event => {
+        const button = event.target.closest("[data-division-index]");
+
+        if (!button) {
+            return;
+        }
+
+        const index = Number(button.dataset.divisionIndex);
+
+        if (!Number.isInteger(index) || !DIVISIONS[index]) {
+            return;
+        }
+
+        selectedDivisionIndex = index;
+        renderRankDetails();
+    });
 
     $("adminHistory").addEventListener("click", event => {
         const button = event.target.closest(
@@ -1290,25 +1351,19 @@ function initialize() {
 
         event.preventDefault();
 
-        const playerId = form.dataset.playerId;
         const input = form.querySelector(".manual-points-input");
 
         if (!input) {
             return;
         }
 
-        addManualPoints(playerId, input.value);
+        const amount = input.value;
         input.value = "";
+
+        addManualPoints(form.dataset.playerId, amount);
     });
 
     renderAll();
-
-    /*
-       O ranking é público e sincronizado em tempo real.
-       O acesso de escrita continua restrito pelas regras
-       do Firestore e pela autenticação administrativa.
-    */
-
     startPlayersListener();
     listenToAuthentication();
 
