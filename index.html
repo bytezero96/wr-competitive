@@ -19,13 +19,12 @@
         </a>
 
         <button id="adminBtn" class="admin-btn" type="button">
-            ⚙ Administração
+            Login
         </button>
     </header>
 
     <main class="container">
 
-        <!-- APRESENTAÇÃO -->
         <section class="hero">
             <div>
                 <span class="eyebrow">WILD RIFT • COMPETITIVO</span>
@@ -39,9 +38,7 @@
             </div>
         </section>
 
-        <!-- ESTATÍSTICAS -->
         <section class="stats-grid" aria-label="Estatísticas do ranking">
-
             <article class="stat-card">
                 <span>JOGADORES</span>
                 <strong id="totalPlayers">0</strong>
@@ -59,10 +56,8 @@
                 <strong id="leaderName">—</strong>
                 <small id="leaderPoints">0 pontos</small>
             </article>
-
         </section>
 
-        <!-- RANKING PRINCIPAL -->
         <section class="panel">
             <div class="section-heading">
                 <div>
@@ -84,7 +79,6 @@
                             <th>APROV.</th>
                         </tr>
                     </thead>
-
                     <tbody id="rankingBody"></tbody>
                 </table>
             </div>
@@ -94,7 +88,6 @@
             </div>
         </section>
 
-        <!-- ELOS -->
         <section class="ranks-section">
             <div class="section-heading">
                 <div>
@@ -104,11 +97,36 @@
             </div>
 
             <div id="ranksGrid" class="ranks-grid"></div>
+
+            <!-- Jogadores do elo selecionado -->
+            <section id="rankDetails" class="panel rank-details hidden">
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow">CLASSIFICAÇÃO POR ELO</span>
+                        <h2 id="rankDetailTitle">Jogadores do elo</h2>
+                        <p id="rankDetailDescription" class="form-hint"></p>
+                    </div>
+
+                    <button
+                        id="closeRankDetails"
+                        class="secondary-btn"
+                        type="button"
+                    >
+                        Fechar
+                    </button>
+                </div>
+
+                <div id="divisionTabs" class="division-tabs"></div>
+
+                <div id="rankPlayerList" class="rank-player-list"></div>
+
+                <div id="emptyRankPlayers" class="empty-state hidden">
+                    Nenhum jogador nesta divisão.
+                </div>
+            </section>
         </section>
 
-        <!-- PAINEL ADMINISTRATIVO -->
         <section id="adminPanel" class="panel hidden">
-
             <div class="section-heading">
                 <div>
                     <span class="eyebrow">ACESSO RESTRITO</span>
@@ -120,7 +138,6 @@
                 </button>
             </div>
 
-            <!-- CADASTRO DE JOGADORES -->
             <div class="admin-grid">
                 <form id="playerForm" class="form-card">
                     <h3>Cadastrar jogador</h3>
@@ -142,21 +159,18 @@
                 </form>
             </div>
 
-            <!-- GERENCIAMENTO INDIVIDUAL -->
             <div class="history-admin">
                 <h3>Gerenciar jogadores</h3>
 
                 <p class="form-hint">
                     Registre vitórias e derrotas, adicione pontos manualmente
-                    e acompanhe o rank atualizado de cada jogador.
+                    e acompanhe o elo atualizado de cada jogador.
                 </p>
 
                 <div id="adminHistory"></div>
             </div>
-
         </section>
 
-        <!-- RODAPÉ -->
         <footer>
             <span>WR COMPETITIVE</span>
             <span>Sistema independente de X1 • Projeto demonstrativo</span>
@@ -164,15 +178,8 @@
 
     </main>
 
-    <!-- AVISOS -->
-    <div
-        id="toast"
-        class="toast"
-        role="status"
-        aria-live="polite">
-    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <!-- Firebase utiliza módulos JavaScript -->
     <script type="module" src="script.js"></script>
 </body>
 </html>
