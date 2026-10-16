@@ -1,46 +1,37 @@
-"use strict";
 
-/* =========================================
-   WR COMPETITIVE
-   Firebase Authentication + Cloud Firestore
-========================================= */
-
-import { initializeApp } from
-    "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 
 import {
-    getAuth,
-    signInWithEmailAndPassword,
-    onAuthStateChanged,
-    signOut
-} from
-    "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
 import {
-    getFirestore,
-    collection,
-    doc,
-    setDoc,
-    updateDoc,
-    increment,
-    onSnapshot,
-    runTransaction
-} from
-    "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  increment,
+  onSnapshot,
+  runTransaction
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-
-/* =========================================
-   CONFIGURAÇÃO FIREBASE
-========================================= */
+/* =========================================================
+   FIREBASE
+========================================================= */
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBJrLkfW9aAVJnrcB7hvYFbsJURBGjQU8M",
-    authDomain: "duelosrankeadoswr.firebaseapp.com",
-    projectId: "duelosrankeadoswr",
-    storageBucket: "duelosrankeadoswr.firebasestorage.app",
-    messagingSenderId: "453903935694",
-    appId: "1:903903935694:web:d0334556ca801b84acc89f",
-    measurementId: "G-6ZZ14JXLYB"
+  apiKey: "AIzaSyBJrLkfW9aAVJnrcB7hvYFbsJURBGjQU8M",
+  authDomain: "duelosrankeadoswr.firebaseapp.com",
+  projectId: "duelosrankeadoswr",
+  storageBucket: "duelosrankeadoswr.firebasestorage.app",
+  messagingSenderId: "453903935694",
+  appId: "1:903903935694:web:d0334556ca801b84acc89f",
+  measurementId: "G-6ZZ14JXLYB"
 };
 
 const ADMIN_UID = "U7ohORMjr1O9Ubby2WFMztAe8Au2";
@@ -51,1329 +42,1006 @@ const db = getFirestore(firebaseApp);
 
 const playersCollection = collection(db, "players");
 
-
-/* =========================================
+/* =========================================================
    CONFIGURAÇÕES DO RANKING
-========================================= */
+========================================================= */
 
 const POINTS_PER_WIN = 20;
 const POINTS_PER_LOSS = 15;
-const POINTS_PER_DIVISION = 100;
-const POINTS_PER_RANK = 300;
-const MITHRIL_MIN_POINTS = 1500;
 
-const RANKS = [
-    {
-        name: "Papel",
-        color: "#9CA3AF",
-        icon: "◇",
-        min: 0,
-        max: 299
-    },
-    {
-        name: "Madeira",
-        color: "#B8875B",
-        icon: "♜",
-        min: 300,
-        max: 599
-    },
-    {
-        name: "Ferrugem",
-        color: "#C66A45",
-        icon: "◆",
-        min: 600,
-        max: 899
-    },
-    {
-        name: "Plástico",
-        color: "#43D9C5",
-        icon: "⬡",
-        min: 900,
-        max: 1199
-    },
-    {
-        name: "Latão",
-        color: "#E8BC65",
-        icon: "✦",
-        min: 1200,
-        max: 1499
-    },
-    {
-        name: "Mithril",
-        color: "#83BFFF",
-        icon: "✧",
-        min: MITHRIL_MIN_POINTS,
-        max: Infinity
-    }
-];
-
-const DIVISIONS = [
-    { name: "III", index: 0 },
-    { name: "II", index: 1 },
-    { name: "I", index: 2 }
-];
-
-
-/* =========================================
-   ESTADO DA APLICAÇÃO
-========================================= */
+/* =========================================================
+   ESTADO
+========================================================= */
 
 let data = {
-    players: [],
-    stats: {},
-    manualPoints: {}
+  players: [],
+  stats: {}
 };
 
 let isAdmin = false;
 let initialized = false;
 let toastTimeout = null;
 let unsubscribePlayers = null;
-let selectedRankIndex = null;
-let selectedDivisionIndex = 0;
 
+/* =========================================================
+   UTILITÁRIOS
+========================================================= */
 
-/* =========================================
-   ELEMENTOS E UTILITÁRIOS
-========================================= */
-
-function $(id) {
-    return document.getElementById(id);
-}
+const $ = (selector) => document.querySelector(selector);
 
 function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    })[character]);
+  return String(value ?? "").replace(/[&<>"']/g, (char) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    };
+
+    return entities[char];
+  });
 }
 
 function normalizeNumber(value) {
-    const number = Number(value);
+  const number = Number(value);
 
-    if (!Number.isFinite(number)) {
-        return 0;
-    }
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
 
-    return Math.floor(number);
+  return Math.floor(number);
 }
 
 function generatePlayerId() {
-    if (window.crypto && typeof window.crypto.randomUUID === "function") {
-        return "player-" + window.crypto.randomUUID();
-    }
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
 
-    return "player-" + Date.now() + "-" +
-        Math.random().toString(36).slice(2, 10);
+  return (
+    "player_" +
+    Date.now() +
+    "_" +
+    Math.random().toString(36).slice(2, 10)
+  );
 }
 
 function getPlayer(playerId) {
-    return data.players.find(player => player.id === playerId);
+  return data.players.find((player) => player.id === playerId);
 }
 
+function showToast(message, duration = 3200) {
+  const toast = $("#toast");
 
-/* =========================================
-   AVISOS
-========================================= */
+  if (!toast) {
+    console.log(message);
+    return;
+  }
 
-function showToast(message) {
-    const toast = $("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
 
-    if (!toast) {
-        console.log(message);
-        return;
-    }
+  clearTimeout(toastTimeout);
 
-    toast.textContent = message;
-    toast.classList.add("show");
-
-    clearTimeout(toastTimeout);
-
-    toastTimeout = setTimeout(() => {
-        toast.classList.remove("show");
-    }, 3000);
+  toastTimeout = setTimeout(() => {
+    toast.classList.remove("show");
+  }, duration);
 }
-
-
-/* =========================================
-   CÁLCULO DO ELO E DA DIVISÃO
-========================================= */
-
-function getRankInfo(points) {
-    /*
-       Mithril começa em 1.500 pontos e não tem divisões.
-       Os cinco elos anteriores têm três divisões de 100 pontos.
-    */
-
-    if (points >= MITHRIL_MIN_POINTS) {
-        return {
-            rankIndex: 5,
-            divisionIndex: null,
-            rank: RANKS[5],
-            division: null
-        };
-    }
-
-    /*
-       Pontuações abaixo de zero permanecem no Papel.
-       O valor real do jogador continua sendo exibido.
-    */
-
-    const safePoints = Math.max(0, points);
-
-    const rankIndex = Math.min(
-        4,
-        Math.floor(safePoints / POINTS_PER_RANK)
-    );
-
-    const pointsInsideRank =
-        safePoints - rankIndex * POINTS_PER_RANK;
-
-    const divisionIndex = Math.min(
-        2,
-        Math.floor(pointsInsideRank / POINTS_PER_DIVISION)
-    );
-
-    return {
-        rankIndex,
-        divisionIndex,
-        rank: RANKS[rankIndex],
-        division: DIVISIONS[divisionIndex].name
-    };
-}
-
-function getPlayerStats() {
-    return data.players.map(player => {
-        const stats = data.stats[player.id] || {
-            wins: 0,
-            losses: 0
-        };
-
-        const wins = Math.max(0, normalizeNumber(stats.wins));
-        const losses = Math.max(0, normalizeNumber(stats.losses));
-        const manualPoints = Math.max(
-            0,
-            normalizeNumber(data.manualPoints[player.id])
-        );
-
-        const played = wins + losses;
-
-        const points =
-            wins * POINTS_PER_WIN -
-            losses * POINTS_PER_LOSS +
-            manualPoints;
-
-        const accuracy = played > 0
-            ? Math.round((wins / played) * 100)
-            : 0;
-
-        const rankInfo = getRankInfo(points);
-
-        return {
-            ...player,
-            wins,
-            losses,
-            played,
-            points,
-            manualPoints,
-            accuracy,
-            ...rankInfo
-        };
-    }).sort((a, b) =>
-        b.points - a.points ||
-        b.wins - a.wins ||
-        a.losses - b.losses ||
-        a.name.localeCompare(b.name)
-    );
-}
-
-
-/* =========================================
-   EMBLEMA DO ELO
-========================================= */
-
-function rankBadge(player) {
-    const divisionText = player.division
-        ? ` ${player.division}`
-        : "";
-
-    return `
-        <span
-            class="rank-badge"
-            style="--rank-color:${player.rank.color};color:${player.rank.color}"
-        >
-            <span class="rank-symbol">${player.rank.icon}</span>
-            ${escapeHTML(player.rank.name)}${divisionText}
-        </span>
-    `;
-}
-
-
-/* =========================================
-   RANKING PRINCIPAL
-========================================= */
-
-function renderRanking() {
-    const tbody = $("rankingBody");
-    const empty = $("emptyRanking");
-
-    if (!tbody || !empty) {
-        return;
-    }
-
-    const players = getPlayerStats();
-
-    $("totalPlayers").textContent = players.length;
-
-    $("rankingCount").textContent =
-        `${players.length} jogador${players.length === 1 ? "" : "es"}`;
-
-    const totalResults = players.reduce(
-        (total, player) => total + player.played,
-        0
-    );
-
-    $("totalMatches").textContent = totalResults;
-
-    const leader = players[0];
-
-    $("leaderName").textContent = leader ? leader.name : "—";
-
-    $("leaderPoints").textContent =
-        leader ? `${leader.points} pontos` : "0 pontos";
-
-    tbody.innerHTML = players.map((player, index) => `
-        <tr>
-            <td>
-                <span class="position ${index < 3 ? "top" : ""}">
-                    ${String(index + 1).padStart(2, "0")}
-                </span>
-            </td>
-
-            <td>
-                <span class="player-name">
-                    ${escapeHTML(player.name)}
-                </span>
-                <span class="player-sub">
-                    ${escapeHTML(player.rank.name)}
-                    ${player.division ? " " + player.division : ""}
-                </span>
-            </td>
-
-            <td>
-                <span class="points">${player.points}</span>
-            </td>
-
-            <td>
-                <span class="win">${player.wins}</span>/<span class="loss">${player.losses}</span>
-            </td>
-
-            <td>
-                <span>${player.accuracy}%</span>
-            </td>
-        </tr>
-    `).join("");
-
-    empty.classList.toggle("hidden", players.length > 0);
-}
-
-
-/* =========================================
-   CARDS DOS SEIS ELOS
-========================================= */
-
-function renderRanks() {
-    const grid = $("ranksGrid");
-
-    if (!grid) {
-        return;
-    }
-
-    grid.innerHTML = RANKS.map((rank, index) => {
-        const isMithril = index === 5;
-
-        let pointsText;
-
-        if (isMithril) {
-            pointsText = "1.500 pontos ou mais";
-        } else {
-            pointsText = `${rank.min}–${rank.max} pontos`;
-        }
-
-        const divisionText = isMithril
-            ? "Sem divisões"
-            : "Divisões III, II e I";
-
-        const selectedClass =
-            selectedRankIndex === index ? " selected" : "";
-
-        return `
-            <article
-                class="rank-card${selectedClass}"
-                style="--rank-color:${rank.color}"
-                data-rank-index="${index}"
-                role="button"
-                tabindex="0"
-                aria-label="Ver jogadores do elo ${rank.name}"
-                aria-pressed="${selectedRankIndex === index}"
-            >
-                <div class="rank-emblem">${rank.icon}</div>
-
-                <h3 style="color:${rank.color}">
-                    ${rank.name}
-                </h3>
-
-                <p>${divisionText}</p>
-                <p>${pointsText}</p>
-            </article>
-        `;
-    }).join("");
-}
-
-
-/* =========================================
-   JOGADORES DE CADA ELO
-========================================= */
-
-function renderRankDetails() {
-    const panel = $("rankDetails");
-    const tabs = $("divisionTabs");
-    const list = $("rankPlayerList");
-    const empty = $("emptyRankPlayers");
-
-    if (!panel || !tabs || !list || !empty) {
-        return;
-    }
-
-    if (
-        selectedRankIndex === null ||
-        !RANKS[selectedRankIndex]
-    ) {
-        panel.classList.add("hidden");
-        return;
-    }
-
-    const rank = RANKS[selectedRankIndex];
-    const isMithril = selectedRankIndex === 5;
-
-    panel.classList.remove("hidden");
-
-    $("rankDetailTitle").textContent =
-        `Elo ${rank.name}`;
-
-    $("rankDetailDescription").textContent = isMithril
-        ? "Todos os jogadores com 1.500 pontos ou mais. Mithril não possui divisões."
-        : `Selecione uma divisão de ${rank.name} para consultar os jogadores e suas pontuações.`;
-
-    if (isMithril) {
-        tabs.innerHTML = "";
-    } else {
-        tabs.innerHTML = DIVISIONS.map(division => `
-            <button
-                type="button"
-                class="division-tab ${
-                    selectedDivisionIndex === division.index ? "active" : ""
-                }"
-                data-division-index="${division.index}"
-                aria-pressed="${
-                    selectedDivisionIndex === division.index
-                }"
-            >
-                Divisão ${division.name}
-            </button>
-        `).join("");
-    }
-
-    const allPlayers = getPlayerStats();
-
-    const filteredPlayers = allPlayers.filter(player => {
-        if (player.rankIndex !== selectedRankIndex) {
-            return false;
-        }
-
-        if (isMithril) {
-            return true;
-        }
-
-        return player.divisionIndex === selectedDivisionIndex;
-    });
-
-    list.innerHTML = filteredPlayers.map((player, index) => `
-        <article class="rank-player-row">
-            <span class="rank-player-position">
-                ${String(index + 1).padStart(2, "0")}
-            </span>
-
-            <div>
-                <div class="rank-player-name">
-                    ${escapeHTML(player.name)}
-                </div>
-
-                <span class="rank-player-meta">
-                    ${player.wins} vitórias · ${player.losses} derrotas
-                </span>
-            </div>
-
-            <span class="rank-player-points">
-                ${player.points.toLocaleString("pt-BR")} pts
-            </span>
-        </article>
-    `).join("");
-
-    empty.classList.toggle("hidden", filteredPlayers.length > 0);
-}
-
-
-/* =========================================
-   PAINEL ADMINISTRATIVO
-========================================= */
-
-function renderAdminHistory() {
-    const container = $("adminHistory");
-
-    if (!container) {
-        return;
-    }
-
-    if (!isAdmin) {
-        container.innerHTML = "";
-        return;
-    }
-
-    const players = getPlayerStats();
-
-    if (players.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                Nenhum jogador cadastrado ainda.
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = players.map(player => `
-        <article
-            class="admin-history-row individual-player-row"
-            data-player-id="${escapeHTML(player.id)}"
-        >
-            <div class="individual-player-info">
-                <strong>${escapeHTML(player.name)}</strong>
-
-                <div class="individual-player-rank">
-                    <span style="color:${player.rank.color};font-weight:700">
-                        Elo atual:
-                    </span>
-                    ${rankBadge(player)}
-                </div>
-
-                <div class="individual-player-stats">
-                    <span>
-                        Vitórias:
-                        <strong class="win">${player.wins}</strong>
-                    </span>
-
-                    <span>
-                        Derrotas:
-                        <strong class="loss">${player.losses}</strong>
-                    </span>
-
-                    <span>
-                        Partidas:
-                        <strong>${player.played}</strong>
-                    </span>
-
-                    <span>
-                        Aproveitamento:
-                        <strong>${player.accuracy}%</strong>
-                    </span>
-
-                    <span>
-                        Pontos totais:
-                        <strong class="points">${player.points}</strong>
-                    </span>
-
-                    <span>
-                        Pontos manuais:
-                        <strong>${player.manualPoints}</strong>
-                    </span>
-                </div>
-            </div>
-
-            <div class="individual-player-actions">
-                <button
-                    type="button"
-                    class="primary-btn"
-                    data-action="win"
-                    data-player-id="${escapeHTML(player.id)}"
-                >
-                    + Vitória
-                </button>
-
-                <button
-                    type="button"
-                    class="primary-btn"
-                    data-action="loss"
-                    data-player-id="${escapeHTML(player.id)}"
-                >
-                    − Derrota
-                </button>
-            </div>
-
-            <form
-                class="manual-points-form"
-                data-player-id="${escapeHTML(player.id)}"
-            >
-                <label for="points-${escapeHTML(player.id)}">
-                    Adicionar pontos
-                </label>
-
-                <div class="manual-points-controls">
-                    <input
-                        id="points-${escapeHTML(player.id)}"
-                        class="manual-points-input"
-                        type="number"
-                        min="1"
-                        step="1"
-                        inputmode="numeric"
-                        placeholder="Ex.: 100"
-                        required
-                    >
-
-                    <button type="submit" class="primary-btn">
-                        Adicionar
-                    </button>
-                </div>
-            </form>
-        </article>
-    `).join("");
-}
-
-
-/* =========================================
-   AUTORIZAÇÃO ADMINISTRATIVA
-========================================= */
 
 function requireAdmin() {
-    if (
-        !auth.currentUser ||
-        auth.currentUser.uid !== ADMIN_UID ||
-        !isAdmin
-    ) {
-        showToast("Entre com a conta administrativa autorizada.");
-        return false;
-    }
+  if (
+    !auth.currentUser ||
+    auth.currentUser.uid !== ADMIN_UID ||
+    !isAdmin
+  ) {
+    showToast("Você não tem permissão para realizar essa ação.");
+    return false;
+  }
 
-    return true;
+  return true;
 }
 
+/* =========================================================
+   CÁLCULO DE PONTOS E ESTATÍSTICAS
+========================================================= */
 
-/* =========================================
-   REGISTRAR VITÓRIA OU DERROTA
-========================================= */
+function getPlayerStats() {
+  const stats = {};
 
-async function registerResult(playerId, result) {
-    if (!requireAdmin()) {
-        return;
-    }
+  data.players.forEach((player) => {
+    const wins = normalizeNumber(player.wins);
+    const losses = normalizeNumber(player.losses);
+    const manualPoints = normalizeNumber(player.manualPoints);
 
-    const player = getPlayer(playerId);
+    const points =
+      wins * POINTS_PER_WIN -
+      losses * POINTS_PER_LOSS +
+      manualPoints;
 
-    if (!player) {
-        showToast("Jogador não encontrado.");
-        return;
-    }
+    const totalMatches = wins + losses;
 
-    if (result !== "win" && result !== "loss") {
-        showToast("Resultado inválido.");
-        return;
-    }
+    const accuracy =
+      totalMatches > 0
+        ? (wins / totalMatches) * 100
+        : 0;
 
-    const field = result === "win" ? "wins" : "losses";
+    stats[player.id] = {
+      wins,
+      losses,
+      manualPoints,
+      points,
+      totalMatches,
+      accuracy
+    };
+  });
 
-    try {
-        await updateDoc(doc(db, "players", playerId), {
-            [field]: increment(1)
-        });
-
-        showToast(
-            `${result === "win" ? "Vitória" : "Derrota"} registrada para ${player.name}.`
-        );
-    } catch (error) {
-        console.error("Erro ao registrar resultado:", error);
-        showToast("Não foi possível registrar o resultado.");
-    }
+  return stats;
 }
 
+/* =========================================================
+   RENDERIZAÇÃO DO RANKING PRINCIPAL
+   Sem coluna ou emblema de elo
+========================================================= */
 
-/* =========================================
-   ADICIONAR PONTOS MANUALMENTE
-========================================= */
+function renderRanking() {
+  const rankingBody = $("#rankingBody");
 
-async function addManualPoints(playerId, amount) {
-    if (!requireAdmin()) {
-        return;
+  if (!rankingBody) {
+    return;
+  }
+
+  const sortedPlayers = [...data.players].sort((a, b) => {
+    const statsA = data.stats[a.id];
+    const statsB = data.stats[b.id];
+
+    if (statsB.points !== statsA.points) {
+      return statsB.points - statsA.points;
     }
 
-    const player = getPlayer(playerId);
-
-    if (!player) {
-        showToast("Jogador não encontrado.");
-        return;
+    if (statsB.wins !== statsA.wins) {
+      return statsB.wins - statsA.wins;
     }
 
-    const pointsToAdd = Number(amount);
-
-    if (
-        !Number.isSafeInteger(pointsToAdd) ||
-        pointsToAdd <= 0
-    ) {
-        showToast("Digite um número inteiro de pontos maior que zero.");
-        return;
+    if (statsA.losses !== statsB.losses) {
+      return statsA.losses - statsB.losses;
     }
 
-    try {
-        const playerRef = doc(db, "players", playerId);
+    return a.name.localeCompare(b.name, "pt-BR");
+  });
 
-        await runTransaction(db, async transaction => {
-            const snapshot = await transaction.get(playerRef);
+  rankingBody.innerHTML = sortedPlayers
+    .map((player, index) => {
+      const stats = data.stats[player.id];
 
-            if (!snapshot.exists()) {
-                throw new Error("PLAYER_NOT_FOUND");
-            }
+      return `
+        <tr>
+          <td>
+            <span class="ranking-position position-${index + 1}">
+              ${index + 1}
+            </span>
+          </td>
 
-            const currentPoints = Math.max(
-                0,
-                normalizeNumber(snapshot.data().manualPoints)
-            );
+          <td>
+            <div class="player-cell">
+              <strong>${escapeHTML(player.name)}</strong>
+            </div>
+          </td>
 
-            if (currentPoints + pointsToAdd > Number.MAX_SAFE_INTEGER) {
-                throw new Error("POINTS_TOO_HIGH");
-            }
+          <td>
+            <strong class="points-value">
+              ${stats.points}
+            </strong>
+          </td>
 
-            transaction.update(playerRef, {
-                manualPoints: currentPoints + pointsToAdd
-            });
-        });
+          <td>
+            <span class="wins-value">${stats.wins}</span>
+            /
+            <span class="losses-value">${stats.losses}</span>
+          </td>
 
-        showToast(
-            `+${pointsToAdd} pontos adicionados para ${player.name}.`
-        );
-    } catch (error) {
-        console.error("Erro ao adicionar pontos:", error);
+          <td>
+            ${stats.accuracy.toFixed(1)}%
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
 
-        if (error.message === "POINTS_TOO_HIGH") {
-            showToast("Essa quantidade de pontos é muito alta.");
-        } else {
-            showToast("Não foi possível adicionar os pontos.");
-        }
+  const totalPlayers = $("#totalPlayers");
+  const totalMatches = $("#totalMatches");
+  const leaderName = $("#leaderName");
+  const leaderPoints = $("#leaderPoints");
+  const rankingCount = $("#rankingCount");
+  const emptyRanking = $("#emptyRanking");
+
+  const matchCount = Object.values(data.stats).reduce(
+    (total, stats) => total + stats.totalMatches,
+    0
+  );
+
+  if (totalPlayers) {
+    totalPlayers.textContent = data.players.length;
+  }
+
+  if (totalMatches) {
+    totalMatches.textContent = matchCount;
+  }
+
+  if (rankingCount) {
+    rankingCount.textContent =
+      `${data.players.length} jogador` +
+      (data.players.length === 1 ? "" : "es");
+  }
+
+  if (sortedPlayers.length > 0) {
+    const leader = sortedPlayers[0];
+    const leaderStats = data.stats[leader.id];
+
+    if (leaderName) {
+      leaderName.textContent = leader.name;
     }
+
+    if (leaderPoints) {
+      leaderPoints.textContent = `${leaderStats.points} pontos`;
+    }
+  } else {
+    if (leaderName) {
+      leaderName.textContent = "—";
+    }
+
+    if (leaderPoints) {
+      leaderPoints.textContent = "0 pontos";
+    }
+  }
+
+  if (emptyRanking) {
+    emptyRanking.classList.toggle(
+      "hidden",
+      sortedPlayers.length > 0
+    );
+  }
 }
 
+/* =========================================================
+   PAINEL ADMINISTRATIVO
+   Sem exibição de elo
+========================================================= */
 
-/* =========================================
+function renderAdminHistory() {
+  const adminHistory = $("#adminHistory");
+
+  if (!adminHistory) {
+    return;
+  }
+
+  if (data.players.length === 0) {
+    adminHistory.innerHTML = `
+      <div class="empty-state">
+        Nenhum jogador cadastrado para gerenciar.
+      </div>
+    `;
+    return;
+  }
+
+  const sortedPlayers = [...data.players].sort((a, b) => {
+    const statsA = data.stats[a.id];
+    const statsB = data.stats[b.id];
+
+    if (statsB.points !== statsA.points) {
+      return statsB.points - statsA.points;
+    }
+
+    return a.name.localeCompare(b.name, "pt-BR");
+  });
+
+  adminHistory.innerHTML = sortedPlayers.map((player) => {
+    const stats = data.stats[player.id];
+
+    return `
+      <div class="individual-player-row" data-player-id="${escapeHTML(player.id)}">
+
+        <div class="individual-player-info">
+          <h4>${escapeHTML(player.name)}</h4>
+
+          <div class="individual-player-rank">
+            <strong>${stats.points} pontos</strong>
+          </div>
+
+          <div class="individual-player-stats">
+            <span>Vitórias: <strong>${stats.wins}</strong></span>
+            <span>Derrotas: <strong>${stats.losses}</strong></span>
+            <span>Aproveitamento: <strong>${stats.accuracy.toFixed(1)}%</strong></span>
+            <span>Pontos manuais: <strong>${stats.manualPoints}</strong></span>
+          </div>
+        </div>
+
+        <div class="individual-player-actions">
+          <button
+            type="button"
+            class="primary-btn"
+            data-action="win"
+            data-player-id="${escapeHTML(player.id)}"
+          >
+            + Vitória
+          </button>
+
+          <button
+            type="button"
+            class="secondary-btn"
+            data-action="loss"
+            data-player-id="${escapeHTML(player.id)}"
+          >
+            − Derrota
+          </button>
+
+          <button
+            type="button"
+            class="edit-player-btn"
+            data-action="edit-name"
+            data-player-id="${escapeHTML(player.id)}"
+          >
+            Alterar nome
+          </button>
+
+          <button
+            type="button"
+            class="remove-player-btn"
+            data-action="remove-player"
+            data-player-id="${escapeHTML(player.id)}"
+          >
+            Remover jogador
+          </button>
+        </div>
+
+        <form
+          class="manual-points-form"
+          data-player-id="${escapeHTML(player.id)}"
+        >
+          <label for="manual-points-${escapeHTML(player.id)}">
+            Adicionar ou retirar pontos
+          </label>
+
+          <div class="manual-points-controls">
+            <input
+              id="manual-points-${escapeHTML(player.id)}"
+              name="manualPoints"
+              type="number"
+              step="1"
+              required
+              placeholder="Ex.: 50 ou -20"
+            >
+
+            <button
+              class="primary-btn"
+              type="submit"
+            >
+              Aplicar
+            </button>
+          </div>
+        </form>
+
+      </div>
+    `;
+  }).join("");
+}
+
+/* =========================================================
    CADASTRAR JOGADOR
-========================================= */
+========================================================= */
 
 async function addPlayer(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    if (!requireAdmin()) {
-        return;
-    }
+  if (!requireAdmin()) {
+    return;
+  }
 
-    const input = $("playerName");
+  const input = $("#playerName");
 
-    if (!input) {
-        return;
-    }
+  if (!input) {
+    return;
+  }
 
-    const name = input.value.trim();
+  const name = input.value.trim();
 
-    if (!name) {
-        showToast("Digite o nome do jogador.");
-        return;
-    }
+  if (!name) {
+    showToast("Digite o nome do jogador.");
+    return;
+  }
 
-    if (name.length > 24) {
-        showToast("O nome pode ter no máximo 24 caracteres.");
-        return;
-    }
+  if (name.length > 24) {
+    showToast("O nome pode ter no máximo 24 caracteres.");
+    return;
+  }
 
-    const normalizedName = name.toLocaleLowerCase("pt-BR");
+  const normalizedName = name.toLocaleLowerCase("pt-BR");
 
-    const exists = data.players.some(player =>
-        player.name.trim().toLocaleLowerCase("pt-BR") === normalizedName
-    );
+  const alreadyExists = data.players.some(
+    (player) =>
+      player.name.trim().toLocaleLowerCase("pt-BR") === normalizedName
+  );
 
-    if (exists) {
-        showToast("Esse jogador já está cadastrado.");
-        return;
-    }
+  if (alreadyExists) {
+    showToast("Já existe um jogador com esse nome.");
+    return;
+  }
 
-    const id = generatePlayerId();
+  const playerId = generatePlayerId();
 
-    try {
-        await setDoc(doc(db, "players", id), {
-            name,
-            wins: 0,
-            losses: 0,
-            manualPoints: 0
-        });
+  try {
+    await setDoc(doc(db, "players", playerId), {
+      name,
+      wins: 0,
+      losses: 0,
+      manualPoints: 0
+    });
 
-        input.value = "";
-        showToast("Jogador cadastrado com sucesso!");
-    } catch (error) {
-        console.error("Erro ao cadastrar jogador:", error);
-        showToast("Não foi possível cadastrar o jogador.");
-    }
+    input.value = "";
+    showToast(`Jogador ${name} cadastrado com sucesso.`);
+  } catch (error) {
+    console.error("Erro ao cadastrar jogador:", error);
+    showToast("Não foi possível cadastrar o jogador.");
+  }
 }
 
+/* =========================================================
+   ALTERAR NOME DO JOGADOR
+========================================================= */
 
-/* =========================================
-   LOGIN ADMINISTRATIVO
-========================================= */
+async function renamePlayer(playerId) {
+  if (!requireAdmin()) {
+    return;
+  }
+
+  const player = getPlayer(playerId);
+
+  if (!player) {
+    showToast("Jogador não encontrado.");
+    return;
+  }
+
+  const newName = window.prompt(
+    "Digite o novo nome do jogador:",
+    player.name
+  );
+
+  if (newName === null) {
+    return;
+  }
+
+  const name = newName.trim();
+
+  if (!name) {
+    showToast("O nome do jogador não pode ficar vazio.");
+    return;
+  }
+
+  if (name.length > 24) {
+    showToast("O nome pode ter no máximo 24 caracteres.");
+    return;
+  }
+
+  const normalizedName = name.toLocaleLowerCase("pt-BR");
+
+  const alreadyExists = data.players.some(
+    (otherPlayer) =>
+      otherPlayer.id !== playerId &&
+      otherPlayer.name.trim().toLocaleLowerCase("pt-BR") === normalizedName
+  );
+
+  if (alreadyExists) {
+    showToast("Já existe outro jogador com esse nome.");
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, "players", playerId), {
+      name
+    });
+
+    showToast("Nome do jogador alterado com sucesso.");
+  } catch (error) {
+    console.error("Erro ao alterar nome:", error);
+    showToast("Não foi possível alterar o nome do jogador.");
+  }
+}
+
+/* =========================================================
+   REMOVER JOGADOR
+========================================================= */
+
+async function removePlayer(playerId) {
+  if (!requireAdmin()) {
+    return;
+  }
+
+  const player = getPlayer(playerId);
+
+  if (!player) {
+    showToast("Jogador não encontrado.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Tem certeza que deseja remover o jogador "${player.name}"?\n\n` +
+    "Essa ação excluirá o cadastro e os dados de vitórias, derrotas " +
+    "e pontos manuais desse jogador. Essa operação não pode ser desfeita."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, "players", playerId));
+
+    showToast(`Jogador ${player.name} removido com sucesso.`);
+  } catch (error) {
+    console.error("Erro ao remover jogador:", error);
+    showToast(
+      "Não foi possível remover o jogador. Verifique as permissões do Firebase."
+    );
+  }
+}
+
+/* =========================================================
+   REGISTRAR VITÓRIA OU DERROTA
+========================================================= */
+
+async function registerResult(playerId, result) {
+  if (!requireAdmin()) {
+    return;
+  }
+
+  const player = getPlayer(playerId);
+
+  if (!player) {
+    showToast("Jogador não encontrado.");
+    return;
+  }
+
+  if (result !== "win" && result !== "loss") {
+    return;
+  }
+
+  const field = result === "win" ? "wins" : "losses";
+
+  try {
+    await updateDoc(doc(db, "players", playerId), {
+      [field]: increment(1)
+    });
+
+    if (result === "win") {
+      showToast(
+        `Vitória registrada para ${player.name}: +${POINTS_PER_WIN} pontos.`
+      );
+    } else {
+      showToast(
+        `Derrota registrada para ${player.name}: -${POINTS_PER_LOSS} pontos.`
+      );
+    }
+  } catch (error) {
+    console.error("Erro ao registrar resultado:", error);
+    showToast("Não foi possível registrar o resultado.");
+  }
+}
+
+/* =========================================================
+   ADICIONAR OU RETIRAR PONTOS MANUAIS
+========================================================= */
+
+async function addManualPoints(playerId, amount) {
+  if (!requireAdmin()) {
+    return;
+  }
+
+  const player = getPlayer(playerId);
+
+  if (!player) {
+    showToast("Jogador não encontrado.");
+    return;
+  }
+
+  const points = Number(amount);
+
+  if (!Number.isSafeInteger(points) || points === 0) {
+    showToast("Informe um número inteiro diferente de zero.");
+    return;
+  }
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const playerRef = doc(db, "players", playerId);
+      const playerSnapshot = await transaction.get(playerRef);
+
+      if (!playerSnapshot.exists()) {
+        throw new Error("PLAYER_NOT_FOUND");
+      }
+
+      const currentPoints = normalizeNumber(
+        playerSnapshot.data().manualPoints
+      );
+
+      transaction.update(playerRef, {
+        manualPoints: currentPoints + points
+      });
+    });
+
+    showToast(
+      points > 0
+        ? `${points} pontos adicionados a ${player.name}.`
+        : `${Math.abs(points)} pontos retirados de ${player.name}.`
+    );
+  } catch (error) {
+    console.error("Erro ao atualizar pontos manuais:", error);
+    showToast("Não foi possível atualizar os pontos.");
+  }
+}
+
+/* =========================================================
+   LOGIN DO ADMINISTRADOR
+========================================================= */
 
 function createAdminLogin() {
-    if (isAdmin) {
-        $("adminPanel").classList.remove("hidden");
-        $("adminPanel").scrollIntoView({
-            behavior: "smooth",
-            block: "start"
-        });
-        return;
+  if ($("#adminLoginOverlay")) {
+    return;
+  }
+
+  const overlay = document.createElement("div");
+
+  overlay.id = "adminLoginOverlay";
+  overlay.className = "login-overlay";
+
+  overlay.innerHTML = `
+    <div class="login-modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+      <button
+        type="button"
+        class="login-close"
+        id="closeLoginBtn"
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+
+      <span class="eyebrow">ÁREA RESTRITA</span>
+
+      <h2 id="loginTitle">Login administrativo</h2>
+
+      <p class="form-hint">
+        Entre com as credenciais do administrador.
+      </p>
+
+      <form id="adminLoginForm">
+        <label for="adminEmail">E-mail</label>
+        <input
+          id="adminEmail"
+          name="email"
+          type="email"
+          autocomplete="username"
+          placeholder="Seu e-mail"
+          required
+        >
+
+        <label for="adminPassword">Senha</label>
+        <input
+          id="adminPassword"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Sua senha"
+          required
+        >
+
+        <button
+          class="primary-btn"
+          id="loginSubmitBtn"
+          type="submit"
+        >
+          Entrar
+        </button>
+      </form>
+
+      <p id="loginError" class="login-error" aria-live="polite"></p>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  $("#closeLoginBtn")?.addEventListener("click", () => {
+    overlay.remove();
+  });
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      overlay.remove();
+    }
+  });
+
+  $("#adminLoginForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const email = $("#adminEmail")?.value.trim();
+    const password = $("#adminPassword")?.value;
+    const submitButton = $("#loginSubmitBtn");
+    const errorElement = $("#loginError");
+
+    if (!email || !password) {
+      return;
     }
 
-    if ($("adminLoginOverlay")) {
-        return;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Entrando...";
     }
 
-    const overlay = document.createElement("div");
-    overlay.id = "adminLoginOverlay";
+    if (errorElement) {
+      errorElement.textContent = "";
+    }
 
-    overlay.style.cssText = `
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        background: rgba(3,8,18,.88);
-        backdrop-filter: blur(8px);
-    `;
+    try {
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
-    overlay.innerHTML = `
-        <form id="adminLoginForm" style="
-            width: 100%;
-            max-width: 360px;
-            padding: 28px;
-            border: 1px solid #263449;
-            border-radius: 16px;
-            background: #101827;
-            color: #f2f5fb;
-            box-shadow: 0 20px 60px rgba(0,0,0,.45);
-            font-family: inherit;
-        ">
-            <div style="
-                color: #43d9f5;
-                font-size: 12px;
-                font-weight: 800;
-                letter-spacing: 2px;
-                margin-bottom: 10px;
-            ">WR COMPETITIVE</div>
+      if (credential.user.uid !== ADMIN_UID) {
+        await signOut(auth);
 
-            <h2 style="margin: 0 0 8px; font-size: 23px;">
-                Acesso administrativo
-            </h2>
-
-            <p style="
-                color: #8b9bb3;
-                font-size: 14px;
-                margin: 0 0 22px;
-            ">
-                Entre com o e-mail e a senha da conta autorizada.
-            </p>
-
-            <label for="adminEmailInput"
-                style="display:block;margin-bottom:8px;font-size:13px;">
-                E-mail administrativo
-            </label>
-
-            <input
-                id="adminEmailInput"
-                type="email"
-                autocomplete="username"
-                required
-                placeholder="Seu e-mail"
-                style="
-                    width: 100%;
-                    box-sizing: border-box;
-                    padding: 13px;
-                    border: 1px solid #263449;
-                    border-radius: 9px;
-                    background: #080d18;
-                    color: #f2f5fb;
-                    font: inherit;
-                    margin-bottom: 14px;
-                "
-            >
-
-            <label for="adminPasswordInput"
-                style="display:block;margin-bottom:8px;font-size:13px;">
-                Senha
-            </label>
-
-            <input
-                id="adminPasswordInput"
-                type="password"
-                autocomplete="current-password"
-                required
-                placeholder="Sua senha"
-                style="
-                    width: 100%;
-                    box-sizing: border-box;
-                    padding: 13px;
-                    border: 1px solid #263449;
-                    border-radius: 9px;
-                    background: #080d18;
-                    color: #f2f5fb;
-                    font: inherit;
-                    margin-bottom: 12px;
-                "
-            >
-
-            <p id="adminLoginError" style="
-                display: none;
-                color: #ff7087;
-                font-size: 13px;
-                margin: 0 0 12px;
-                line-height: 1.5;
-            "></p>
-
-            <button type="submit" id="adminLoginSubmit" style="
-                width: 100%;
-                padding: 13px;
-                border: 0;
-                border-radius: 9px;
-                background: #43d9f5;
-                color: #080d18;
-                font: inherit;
-                font-weight: 800;
-                cursor: pointer;
-                margin-bottom: 10px;
-            ">
-                Entrar no painel
-            </button>
-
-            <button type="button" id="cancelAdminLogin" style="
-                width: 100%;
-                padding: 11px;
-                border: 1px solid #263449;
-                border-radius: 9px;
-                background: transparent;
-                color: #f2f5fb;
-                font: inherit;
-                cursor: pointer;
-            ">
-                Cancelar
-            </button>
-        </form>
-    `;
-
-    document.body.appendChild(overlay);
-
-    $("adminLoginForm").addEventListener("submit", async event => {
-        event.preventDefault();
-
-        const email = $("adminEmailInput").value.trim();
-        const password = $("adminPasswordInput").value;
-        const errorElement = $("adminLoginError");
-        const submitButton = $("adminLoginSubmit");
-
-        errorElement.style.display = "none";
-        submitButton.disabled = true;
-        submitButton.textContent = "Verificando acesso...";
-
-        try {
-            const credential = await signInWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
-
-            if (credential.user.uid !== ADMIN_UID) {
-                await signOut(auth);
-                throw new Error("NOT_AUTHORIZED");
-            }
-
-            overlay.remove();
-        } catch (error) {
-            console.error("Erro no login administrativo:", error);
-
-            if (error.message === "NOT_AUTHORIZED") {
-                errorElement.textContent =
-                    "Esta conta não possui autorização administrativa.";
-            } else if (
-                error.code === "auth/invalid-credential" ||
-                error.code === "auth/wrong-password" ||
-                error.code === "auth/user-not-found" ||
-                error.code === "auth/invalid-email"
-            ) {
-                errorElement.textContent = "E-mail ou senha incorretos.";
-            } else if (error.code === "auth/too-many-requests") {
-                errorElement.textContent =
-                    "Muitas tentativas. Aguarde um pouco e tente novamente.";
-            } else if (error.code === "auth/network-request-failed") {
-                errorElement.textContent =
-                    "Falha de conexão. Verifique sua internet.";
-            } else {
-                errorElement.textContent =
-                    "Não foi possível entrar. Confira o login e tente novamente.";
-            }
-
-            errorElement.style.display = "block";
-            $("adminPasswordInput").value = "";
-            $("adminPasswordInput").focus();
-
-            submitButton.disabled = false;
-            submitButton.textContent = "Entrar no painel";
+        if (errorElement) {
+          errorElement.textContent =
+            "Esta conta não tem permissão de administrador.";
         }
-    });
 
-    $("cancelAdminLogin").addEventListener("click", () => {
-        overlay.remove();
-    });
+        return;
+      }
 
-    overlay.addEventListener("click", event => {
-        if (event.target === overlay) {
-            overlay.remove();
-        }
-    });
+      overlay.remove();
+      showToast("Login administrativo realizado com sucesso.");
+    } catch (error) {
+      console.error("Erro no login:", error);
 
-    $("adminEmailInput").focus();
+      if (errorElement) {
+        errorElement.textContent =
+          "Não foi possível entrar. Confira o e-mail e a senha.";
+      }
+    } finally {
+      if (submitButton && document.body.contains(submitButton)) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Entrar";
+      }
+    }
+  });
 }
 
-
-/* =========================================
-   ENCERRAR SESSÃO
-========================================= */
+/* =========================================================
+   SAIR DO ADMINISTRADOR
+========================================================= */
 
 async function closeAdmin() {
-    try {
-        await signOut(auth);
-    } catch (error) {
-        console.error("Erro ao encerrar sessão:", error);
-        showToast("Não foi possível encerrar a sessão.");
-        return;
-    }
-
-    isAdmin = false;
-    $("adminPanel").classList.add("hidden");
-
-    const overlay = $("adminLoginOverlay");
-
-    if (overlay) {
-        overlay.remove();
-    }
-
-    renderAdminHistory();
-    showToast("Sessão administrativa encerrada.");
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Erro ao sair:", error);
+    showToast("Não foi possível encerrar a sessão.");
+  }
 }
 
 function toggleAdmin() {
-    if (isAdmin) {
-        closeAdmin();
-    } else {
-        createAdminLogin();
-    }
+  if (isAdmin && auth.currentUser?.uid === ADMIN_UID) {
+    $("#adminPanel")?.classList.toggle("hidden");
+    return;
+  }
+
+  createAdminLogin();
 }
 
-
-/* =========================================
-   EVENTOS DOS ELOS
-========================================= */
-
-function handleRankGridClick(event) {
-    const card = event.target.closest("[data-rank-index]");
-
-    if (!card) {
-        return;
-    }
-
-    openRank(card.dataset.rankIndex);
-}
-
-function handleRankGridKeydown(event) {
-    if (event.key !== "Enter" && event.key !== " ") {
-        return;
-    }
-
-    const card = event.target.closest("[data-rank-index]");
-
-    if (!card) {
-        return;
-    }
-
-    event.preventDefault();
-    openRank(card.dataset.rankIndex);
-}
-
-function openRank(rankIndex) {
-    const index = Number(rankIndex);
-
-    if (!Number.isInteger(index) || !RANKS[index]) {
-        return;
-    }
-
-    selectedRankIndex = index;
-    selectedDivisionIndex = 0;
-
-    renderRanks();
-    renderRankDetails();
-
-    $("rankDetails").scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-    });
-}
-
-function closeRankDetails() {
-    selectedRankIndex = null;
-
-    renderRanks();
-    renderRankDetails();
-}
-
-
-/* =========================================
-   RENDERIZAÇÃO GERAL
-========================================= */
-
-function renderAll() {
-    renderRanking();
-    renderRanks();
-    renderRankDetails();
-    renderAdminHistory();
-}
-
-
-/* =========================================
-   SINCRONIZAÇÃO EM TEMPO REAL
-========================================= */
+/* =========================================================
+   FIRESTORE: ATUALIZAÇÃO EM TEMPO REAL
+========================================================= */
 
 function startPlayersListener() {
-    if (unsubscribePlayers) {
-        unsubscribePlayers();
+  if (unsubscribePlayers) {
+    unsubscribePlayers();
+  }
+
+  unsubscribePlayers = onSnapshot(
+    playersCollection,
+    (snapshot) => {
+      const players = [];
+
+      snapshot.forEach((documentSnapshot) => {
+        const playerData = documentSnapshot.data();
+
+        players.push({
+          id: documentSnapshot.id,
+          name: String(playerData.name ?? "Sem nome"),
+          wins: normalizeNumber(playerData.wins),
+          losses: normalizeNumber(playerData.losses),
+          manualPoints: normalizeNumber(playerData.manualPoints)
+        });
+      });
+
+      data.players = players;
+      data.stats = getPlayerStats();
+
+      renderAll();
+    },
+    (error) => {
+      console.error("Erro ao carregar jogadores:", error);
+      showToast("Erro ao sincronizar os jogadores com o Firebase.");
     }
-
-    unsubscribePlayers = onSnapshot(
-        playersCollection,
-
-        snapshot => {
-            const players = [];
-            const stats = {};
-            const manualPoints = {};
-
-            snapshot.forEach(documentSnapshot => {
-                const record = documentSnapshot.data();
-                const id = documentSnapshot.id;
-
-                players.push({
-                    id,
-                    name: String(record.name || "Jogador")
-                        .trim()
-                        .slice(0, 24)
-                });
-
-                stats[id] = {
-                    wins: normalizeNumber(record.wins),
-                    losses: normalizeNumber(record.losses)
-                };
-
-                manualPoints[id] = normalizeNumber(record.manualPoints);
-            });
-
-            data = {
-                players,
-                stats,
-                manualPoints
-            };
-
-            renderAll();
-        },
-
-        error => {
-            console.error("Erro ao sincronizar ranking:", error);
-            showToast(
-                "Erro ao carregar o ranking. Verifique sua conexão e as regras do Firebase."
-            );
-        }
-    );
+  );
 }
 
-
-/* =========================================
-   ESTADO DE AUTENTICAÇÃO
-========================================= */
+/* =========================================================
+   AUTENTICAÇÃO
+========================================================= */
 
 function listenToAuthentication() {
-    onAuthStateChanged(auth, async user => {
-        if (user && user.uid === ADMIN_UID) {
-            const wasAdmin = isAdmin;
-            isAdmin = true;
+  onAuthStateChanged(auth, async (user) => {
+    if (user && user.uid === ADMIN_UID) {
+      isAdmin = true;
 
-            const overlay = $("adminLoginOverlay");
+      const adminBtn = $("#adminBtn");
+      const logoutBtn = $("#logoutBtn");
+      const adminPanel = $("#adminPanel");
 
-            if (overlay) {
-                overlay.remove();
-            }
+      if (adminBtn) {
+        adminBtn.textContent = "Painel ADM";
+      }
 
-            $("adminPanel").classList.remove("hidden");
-            renderAdminHistory();
+      logoutBtn?.classList.remove("hidden");
+      adminPanel?.classList.remove("hidden");
 
-            if (!wasAdmin) {
-                showToast("Acesso administrativo autorizado!");
-            }
-        } else {
-            isAdmin = false;
-            $("adminPanel").classList.add("hidden");
-            renderAdminHistory();
+      return;
+    }
 
-            if (user) {
-                showToast("Conta sem autorização administrativa.");
+    isAdmin = false;
 
-                try {
-                    await signOut(auth);
-                } catch (error) {
-                    console.error("Erro ao encerrar conta não autorizada:", error);
-                }
-            }
-        }
-    });
+    const adminBtn = $("#adminBtn");
+    const adminPanel = $("#adminPanel");
+
+    if (adminBtn) {
+      adminBtn.textContent = "Login";
+    }
+
+    adminPanel?.classList.add("hidden");
+    $("#logoutBtn")?.classList.add("hidden");
+
+    if (user && user.uid !== ADMIN_UID) {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error("Erro ao encerrar sessão não autorizada:", error);
+      }
+    }
+  });
 }
 
+/* =========================================================
+   EVENTOS DO PAINEL ADMINISTRATIVO
+========================================================= */
 
-/* =========================================
+function handleAdminHistoryClick(event) {
+  const button = event.target.closest(
+    "button[data-action][data-player-id]"
+  );
+
+  if (!button) {
+    return;
+  }
+
+  const playerId = button.dataset.playerId;
+  const action = button.dataset.action;
+
+  if (!playerId) {
+    return;
+  }
+
+  switch (action) {
+    case "win":
+    case "loss":
+      registerResult(playerId, action);
+      break;
+
+    case "edit-name":
+      renamePlayer(playerId);
+      break;
+
+    case "remove-player":
+      removePlayer(playerId);
+      break;
+
+    default:
+      break;
+  }
+}
+
+function handleManualPointsSubmit(event) {
+  const form = event.target.closest(".manual-points-form");
+
+  if (!form) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const playerId = form.dataset.playerId;
+  const input = form.querySelector('[name="manualPoints"]');
+
+  if (!playerId || !input) {
+    return;
+  }
+
+  const amount = Number(input.value);
+
+  if (!Number.isSafeInteger(amount) || amount === 0) {
+    showToast("Informe um número inteiro diferente de zero.");
+    return;
+  }
+
+  addManualPoints(playerId, amount);
+}
+
+/* =========================================================
+   RENDERIZAR TODA A INTERFACE
+   Sem renderização dos elos
+========================================================= */
+
+function renderAll() {
+  data.stats = getPlayerStats();
+
+  renderRanking();
+  renderAdminHistory();
+}
+
+/* =========================================================
    INICIALIZAÇÃO
-========================================= */
+========================================================= */
 
 function initialize() {
-    if (initialized) {
-        return;
-    }
+  if (initialized) {
+    return;
+  }
 
-    const requiredIds = [
-        "adminBtn",
-        "adminPanel",
-        "logoutBtn",
-        "playerForm",
-        "playerName",
-        "adminHistory",
-        "rankingBody",
-        "totalPlayers",
-        "totalMatches",
-        "leaderName",
-        "leaderPoints",
-        "rankingCount",
-        "emptyRanking",
-        "ranksGrid",
-        "rankDetails",
-        "rankDetailTitle",
-        "rankDetailDescription",
-        "divisionTabs",
-        "rankPlayerList",
-        "emptyRankPlayers",
-        "closeRankDetails",
-        "toast"
-    ];
+  initialized = true;
 
-    const missing = requiredIds.filter(id => !$(id));
+  const playerForm = $("#playerForm");
+  const adminBtn = $("#adminBtn");
+  const logoutBtn = $("#logoutBtn");
+  const adminHistory = $("#adminHistory");
 
-    if (missing.length > 0) {
-        console.error(
-            "WR Competitive: elementos não encontrados no HTML:",
-            missing.join(", ")
-        );
-        return;
-    }
+  if (playerForm) {
+    playerForm.addEventListener("submit", addPlayer);
+  }
 
-    initialized = true;
+  if (adminBtn) {
+    adminBtn.addEventListener("click", toggleAdmin);
+  }
 
-    $("playerForm").addEventListener("submit", addPlayer);
-    $("adminBtn").addEventListener("click", toggleAdmin);
-    $("logoutBtn").addEventListener("click", closeAdmin);
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", closeAdmin);
+  }
 
-    $("ranksGrid").addEventListener("click", handleRankGridClick);
-    $("ranksGrid").addEventListener("keydown", handleRankGridKeydown);
+  if (adminHistory) {
+    adminHistory.addEventListener(
+      "click",
+      handleAdminHistoryClick
+    );
 
-    $("closeRankDetails").addEventListener("click", closeRankDetails);
+    adminHistory.addEventListener(
+      "submit",
+      handleManualPointsSubmit
+    );
+  }
 
-    $("divisionTabs").addEventListener("click", event => {
-        const button = event.target.closest("[data-division-index]");
-
-        if (!button) {
-            return;
-        }
-
-        const index = Number(button.dataset.divisionIndex);
-
-        if (!Number.isInteger(index) || !DIVISIONS[index]) {
-            return;
-        }
-
-        selectedDivisionIndex = index;
-        renderRankDetails();
-    });
-
-    $("adminHistory").addEventListener("click", event => {
-        const button = event.target.closest(
-            "button[data-action][data-player-id]"
-        );
-
-        if (!button) {
-            return;
-        }
-
-        registerResult(
-            button.dataset.playerId,
-            button.dataset.action
-        );
-    });
-
-    $("adminHistory").addEventListener("submit", event => {
-        const form = event.target.closest(".manual-points-form");
-
-        if (!form) {
-            return;
-        }
-
-        event.preventDefault();
-
-        const input = form.querySelector(".manual-points-input");
-
-        if (!input) {
-            return;
-        }
-
-        const amount = input.value;
-        input.value = "";
-
-        addManualPoints(form.dataset.playerId, amount);
-    });
-
-    renderAll();
-    startPlayersListener();
-    listenToAuthentication();
-
-    console.log("WR Competitive conectado ao Firebase.");
+  startPlayersListener();
+  listenToAuthentication();
 }
 
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initialize, {
-        once: true
-    });
+  document.addEventListener("DOMContentLoaded", initialize);
 } else {
-    initialize();
+  initialize();
 }
