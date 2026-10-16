@@ -878,3 +878,135 @@ font-size: 11px;
 font-size: 9px;
 }
 }
+/* =========================================
+   WR COMPETITIVE — DETALHES DOS ELOS
+   Complemento do CSS existente
+========================================= */
+
+.rank-card {
+    cursor: pointer;
+}
+
+.rank-card:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+}
+
+.rank-card.selected {
+    border-color: var(--rank-color);
+}
+
+.rank-details {
+    margin-top: 20px;
+    margin-bottom: 0;
+}
+
+.rank-details .section-heading {
+    align-items: flex-start;
+}
+
+.rank-details .form-hint {
+    margin-bottom: 0;
+}
+
+.division-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.division-tab {
+    padding: 9px 15px;
+    color: var(--muted);
+    background: #0b1321;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-weight: 700;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.division-tab:hover {
+    color: var(--text);
+    border-color: var(--cyan);
+}
+
+.division-tab.active {
+    color: var(--cyan);
+    border-color: var(--cyan);
+    background: #43d9f510;
+}
+
+.rank-player-list {
+    display: grid;
+    gap: 0;
+}
+
+.rank-player-row {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.rank-player-row:last-child {
+    border-bottom: 0;
+}
+
+.rank-player-position {
+    color: var(--muted);
+    font-weight: 800;
+}
+
+.rank-player-row:first-child .rank-player-position {
+    color: var(--gold);
+}
+
+.rank-player-name {
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.rank-player-points {
+    color: var(--cyan);
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.rank-player-row:first-child .rank-player-points {
+    color: var(--gold);
+}
+
+.rank-player-meta {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+@media (max-width: 560px) {
+    .rank-details .section-heading {
+        gap: 10px;
+    }
+
+    .division-tab {
+        padding: 9px 11px;
+        font-size: 11px;
+    }
+
+    .rank-player-row {
+        grid-template-columns: 28px minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 13px 4px;
+    }
+
+    .rank-player-name {
+        font-size: 12px;
+    }
+
+    .rank-player-points {
+        font-size: 12px;
+    }
+}
