@@ -1,6 +1,10 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
+/* ========================================
+   VARIÁVEIS E CONFIGURAÇÕES GERAIS
+======================================== */
+
 :root {
   --bg: #080d18;
   --panel: #101827;
@@ -74,7 +78,9 @@ button:disabled {
   display: none !important;
 }
 
-/* CABEÇALHO */
+/* ========================================
+   CABEÇALHO
+======================================== */
 
 .topbar {
   min-height: 76px;
@@ -93,6 +99,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
   color: var(--text);
   text-decoration: none;
   font-family: var(--font-display);
@@ -111,6 +118,7 @@ button:disabled {
   height: 43px;
   display: grid;
   place-items: center;
+  flex-shrink: 0;
   color: #071521;
   background: var(--cyan);
   font-family: var(--font-display);
@@ -118,6 +126,17 @@ button:disabled {
   font-weight: 900;
   font-style: italic;
   clip-path: polygon(15% 0, 100% 0, 85% 100%, 0 100%);
+}
+
+/* Botões do cabeçalho */
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .admin-btn,
@@ -141,11 +160,88 @@ button:disabled {
   background: #19283a;
 }
 
-/* CONTEÚDO PRINCIPAL */
+/* Botão único: ranking / roleta */
+
+#pageSwitchBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 15px;
+  flex-shrink: 0;
+
+  color: #eaf1ff;
+  background: linear-gradient(135deg, #17243a, #101827);
+  border: 1px solid #34445d;
+  border-radius: 10px;
+
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  box-shadow: 0 4px 14px #0000002e;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+#pageSwitchBtn::before {
+  content: none;
+}
+
+#pageSwitchBtn:hover {
+  color: #fff;
+  background: linear-gradient(135deg, #203653, #17243a);
+  border-color: #628bd1;
+  box-shadow: 0 5px 20px #4474cc29;
+  transform: translateY(-1px);
+}
+
+#pageSwitchBtn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+#pageSwitchBtn .switch-icon,
+#pageSwitchBtn .switch-arrow {
+  color: #8fb5ff;
+  flex-shrink: 0;
+}
+
+#pageSwitchBtn .switch-icon {
+  font-size: 17px;
+}
+
+#pageSwitchBtn .switch-arrow {
+  font-size: 16px;
+}
+
+#pageSwitchBtn:focus-visible {
+  outline: 2px solid #7da7ff;
+  outline-offset: 3px;
+}
+
+/* ========================================
+   CONTEÚDO PRINCIPAL
+======================================== */
 
 .container {
   width: min(1180px, 92%);
   margin: 0 auto;
+}
+
+.page-section {
+  min-width: 0;
+}
+
+.page-section.hidden {
+  display: none !important;
 }
 
 .hero {
@@ -212,7 +308,9 @@ h1 span {
   background: var(--green);
 }
 
-/* ESTATÍSTICAS */
+/* ========================================
+   ESTATÍSTICAS
+======================================== */
 
 .stats-grid {
   display: grid;
@@ -270,7 +368,9 @@ h1 span {
   line-height: 1.6;
 }
 
-/* PAINÉIS */
+/* ========================================
+   PAINÉIS E TÍTULOS
+======================================== */
 
 .panel {
   padding: 25px;
@@ -307,7 +407,9 @@ h2 {
   white-space: nowrap;
 }
 
-/* RANKING */
+/* ========================================
+   TABELA DO RANKING
+======================================== */
 
 .table-wrap {
   display: block;
@@ -474,7 +576,9 @@ h2 {
   text-align: center;
 }
 
-/* ADMINISTRAÇÃO */
+/* ========================================
+   ADMINISTRAÇÃO
+======================================== */
 
 .admin-grid {
   display: grid;
@@ -561,7 +665,9 @@ input::placeholder {
   line-height: 1.7;
 }
 
-/* GERENCIAMENTO DE JOGADORES */
+/* ========================================
+   GERENCIAMENTO DE JOGADORES
+======================================== */
 
 .history-admin {
   margin-top: 28px;
@@ -681,169 +787,9 @@ input::placeholder {
   padding: 10px 16px;
 }
 
-/* RODAPÉ */
-
-.site-footer {
-  width: min(1180px, 92%);
-  margin: 0 auto;
-  padding: 22px 0 30px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  color: var(--muted);
-  font-family: var(--font-display);
-  font-size: 12px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  border-top: 1px solid var(--border);
-}
-
-.footer-brand {
-  color: var(--muted);
-  font-family: var(--font-ui);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1.6;
-  text-transform: none;
-}
-
-.footer-version {
-  color: var(--muted);
-  font-family: var(--font-ui);
-  font-size: 11px;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.footer-credit {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.footer-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--cyan);
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-decoration: none;
-  text-transform: none;
-  transition: color 0.2s ease;
-}
-
-.footer-link:hover {
-  color: #fff;
-  text-decoration: underline;
-}
-
-.footer-social-icon {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  display: block;
-}
-
-.footer-separator {
-  color: var(--muted);
-}
-
-/* NOTIFICAÇÕES */
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  z-index: 110;
-  width: max-content;
-  max-width: 90%;
-  padding: 13px 18px;
-  color: #d9fff0;
-  text-align: center;
-  background: #15332e;
-  border: 1px solid #337d6c;
-  border-radius: 4px;
-  box-shadow: 0 8px 24px #00000030;
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, 20px);
-  transition: opacity 0.2s, transform 0.2s;
-}
-
-.toast.show {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-/* LOGIN ADMINISTRATIVO */
-
-.login-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: #020711e8;
-  backdrop-filter: blur(5px);
-}
-
-.login-modal {
-  position: relative;
-  width: min(100%, 420px);
-  padding: 30px;
-  background: #111c2c;
-  border: 1px solid #34465e;
-  border-radius: 5px;
-  box-shadow: 0 20px 55px #00000055;
-}
-
-.login-modal h2 {
-  margin: 12px 0;
-}
-
-.login-modal .form-hint {
-  margin-bottom: 20px;
-}
-
-.login-close {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  width: 34px;
-  height: 34px;
-  color: #a2b1c6;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  font-size: 25px;
-  line-height: 1;
-}
-
-.login-close:hover {
-  color: var(--text);
-  border-color: var(--border);
-  background: #192435;
-}
-
-.login-error {
-  min-height: 18px;
-  margin: 14px 0 0;
-  color: var(--red);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-/* ROLETA DE CAMPEÕES */
+/* ========================================
+   ROLETA DE CAMPEÕES
+======================================== */
 
 .roulette-description {
   margin: 10px 0 0;
@@ -851,7 +797,7 @@ input::placeholder {
   line-height: 1.7;
 }
 
-/* FILTROS POR CLASSE */
+/* Filtros por classe */
 
 .role-filters {
   display: flex;
@@ -885,7 +831,7 @@ input::placeholder {
   box-shadow: inset 0 0 0 1px #43d9f522;
 }
 
-/* ESTRUTURA DA ROLETA */
+/* Estrutura da roleta */
 
 .roulette-layout {
   display: grid;
@@ -957,7 +903,7 @@ input::placeholder {
   letter-spacing: 1.4px;
 }
 
-/* RESULTADO DO SORTEIO */
+/* Resultado do sorteio */
 
 .champion-result {
   width: 100%;
@@ -965,65 +911,24 @@ input::placeholder {
   animation: championReveal 0.45s ease both;
 }
 
-/* MOLDURA DO CAMPEÃO */
+/* Imagem do campeão: compatível com o HTML enviado */
 
-.champion-portrait {
-  position: relative;
-  isolation: isolate;
+#championImage {
+  display: block;
   width: 160px;
   height: 160px;
-  flex-shrink: 0;
-  margin-bottom: 8px;
-  overflow: hidden;
+  flex: 0 0 auto;
+  margin: 0 0 8px;
+  padding: 0;
+  object-fit: cover;
+  object-position: center;
+  background: #0b1422;
   border: 2px solid var(--cyan);
   border-radius: 12px;
-  background: #0b1422;
   box-shadow:
     0 0 0 4px #38bdf818,
     0 0 28px #38bdf830;
 }
-
-/* IMAGEM DENTRO DA MOLDURA */
-
-.champion-portrait img {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  object-fit: cover;
-  object-position: center;
-  border: 0;
-  border-radius: 0;
-  background: #0b1422;
-  box-shadow: none;
-  opacity: 1;
-  transition: transform 0.3s ease;
-}
-
-.champion-portrait:hover img {
-  transform: scale(1.06);
-}
-
-/* REFLEXO VISUAL */
-
-.champion-portrait-glow {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    145deg,
-    #ffffff20 0%,
-    transparent 38%,
-    transparent 70%,
-    #22d3ee12 100%
-  );
-}
-
-/* TEXTO DO CAMPEÃO SORTEADO */
 
 .champion-result .result-label {
   color: var(--cyan);
@@ -1064,7 +969,7 @@ input::placeholder {
   }
 }
 
-/* CONTROLES DA ROLETA */
+/* Controles da roleta */
 
 .roulette-actions {
   display: flex;
@@ -1139,7 +1044,9 @@ input::placeholder {
   margin: 0;
 }
 
-/* CATÁLOGO DE CAMPEÕES */
+/* ========================================
+   CATÁLOGO DE CAMPEÕES
+======================================== */
 
 .champion-catalog-heading {
   display: flex;
@@ -1215,7 +1122,7 @@ input::placeholder {
   box-shadow: inset 0 0 0 1px var(--cyan);
 }
 
-/* ERRO E RECARREGAMENTO DO CATÁLOGO */
+/* Mensagens e tentativa de recarregar catálogo */
 
 #championCatalog #retryChampionCatalog {
   display: block;
@@ -1234,7 +1141,177 @@ input::placeholder {
   opacity: 0.6;
 }
 
-/* TABLETS */
+/* ========================================
+   RODAPÉ
+======================================== */
+
+.site-footer {
+  width: min(1180px, 92%);
+  margin: 0 auto;
+  padding: 22px 0 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+}
+
+.footer-brand {
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.6;
+  text-transform: none;
+}
+
+.footer-version {
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.footer-credit {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--cyan);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.footer-social-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: block;
+}
+
+.footer-separator {
+  color: var(--muted);
+}
+
+/* ========================================
+   NOTIFICAÇÕES
+======================================== */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 110;
+  width: max-content;
+  max-width: 90%;
+  padding: 13px 18px;
+  color: #d9fff0;
+  text-align: center;
+  background: #15332e;
+  border: 1px solid #337d6c;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px #00000030;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 20px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ========================================
+   LOGIN ADMINISTRATIVO
+======================================== */
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #020711e8;
+  backdrop-filter: blur(5px);
+}
+
+.login-modal {
+  position: relative;
+  width: min(100%, 420px);
+  padding: 30px;
+  background: #111c2c;
+  border: 1px solid #34465e;
+  border-radius: 5px;
+  box-shadow: 0 20px 55px #00000055;
+}
+
+.login-modal h2 {
+  margin: 12px 0;
+}
+
+.login-modal .form-hint {
+  margin-bottom: 20px;
+}
+
+.login-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  color: #a2b1c6;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.login-close:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: #192435;
+}
+
+.login-error {
+  min-height: 18px;
+  margin: 14px 0 0;
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ========================================
+   TABLETS
+======================================== */
 
 @media (max-width: 1000px) {
   .admin-grid {
@@ -1243,6 +1320,37 @@ input::placeholder {
 }
 
 @media (max-width: 760px) {
+  .topbar {
+    min-height: 64px;
+    padding: 12px 4%;
+    gap: 10px;
+  }
+
+  .topbar-actions {
+    gap: 7px;
+  }
+
+  #pageSwitchBtn {
+    min-height: 40px;
+    gap: 6px;
+    padding: 0 10px;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+  }
+
+  #pageSwitchBtn .switch-icon {
+    font-size: 14px;
+  }
+
+  #pageSwitchBtn .switch-arrow {
+    display: none;
+  }
+
+  .admin-btn {
+    padding: 10px;
+    font-size: 10px;
+  }
+
   .roulette-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1270,28 +1378,21 @@ input::placeholder {
   }
 }
 
-/* CELULARES */
+/* ========================================
+   CELULARES
+======================================== */
 
 @media (max-width: 560px) {
-  .topbar {
-    min-height: 64px;
-    padding: 0 4%;
-  }
-
   .brand {
     gap: 8px;
     font-size: 17px;
+    letter-spacing: 1px;
   }
 
   .brand-icon {
     width: 34px;
     height: 34px;
     font-size: 20px;
-  }
-
-  .admin-btn {
-    padding: 10px;
-    font-size: 11px;
   }
 
   .container {
@@ -1464,14 +1565,55 @@ input::placeholder {
     padding: 24px 12px;
   }
 
-  .champion-portrait {
+  #championImage {
     width: 135px;
     height: 135px;
     border-radius: 10px;
   }
 }
 
-/* ACESSIBILIDADE */
+/* Celulares estreitos */
+
+@media (max-width: 420px) {
+  .topbar {
+    gap: 6px;
+    padding-right: 3%;
+    padding-left: 3%;
+  }
+
+  .brand {
+    gap: 6px;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+
+  .brand-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+  }
+
+  .topbar-actions {
+    gap: 5px;
+  }
+
+  #pageSwitchBtn {
+    gap: 5px;
+    min-height: 38px;
+    padding: 0 7px;
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+
+  .admin-btn {
+    padding: 9px 7px;
+    font-size: 9px;
+  }
+}
+
+/* ========================================
+   ACESSIBILIDADE
+======================================== */
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1488,7 +1630,7 @@ input::placeholder {
     transition: none;
   }
 
-  .champion-portrait img {
+  #championImage {
     transition: none;
   }
 }
