@@ -25,12 +25,12 @@ import {
 ========================================================= */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBJrLkfW9aAVJnrcB7hvYFbsJURBGJQU8M",
+  apiKey: "AIzaSyBJrLkfW9aAVJnrcB7hvYFbsJURBGjQU8M",
   authDomain: "duelosrankeadoswr.firebaseapp.com",
   projectId: "duelosrankeadoswr",
   storageBucket: "duelosrankeadoswr.firebasestorage.app",
   messagingSenderId: "453903935694",
-  appId: "1:903903935694:web:d0334556ca801b84acc89f",
+  appId: "1:453903935694:web:d0334556ca801b84acc89f",
   measurementId: "G-6ZZ14JXLYB"
 };
 
@@ -118,7 +118,6 @@ function requireAdmin() {
 
 /* =========================================================
    NAVEGAÇÃO
-   UM ÚNICO BOTÃO PARA ALTERNAR AS PÁGINAS
 ========================================================= */
 
 function setActivePage(pageId) {
@@ -141,7 +140,6 @@ function setActivePage(pageId) {
 
   const showingRanking = pageId === "rankingPage";
 
-  // O botão sempre aponta para a outra página.
   button.dataset.page = showingRanking
     ? "roulettePage"
     : "rankingPage";
@@ -183,17 +181,14 @@ function initializeTabs() {
     return;
   }
 
-  // Evita adicionar o evento mais de uma vez.
   if (button.dataset.navigationInitialized !== "true") {
     button.addEventListener("click", () => {
-      const destination = button.dataset.page;
-      setActivePage(destination);
+      setActivePage(button.dataset.page);
     });
 
     button.dataset.navigationInitialized = "true";
   }
 
-  // O ranking é sempre a página inicial.
   setActivePage("rankingPage");
 }
 
@@ -454,7 +449,7 @@ async function addPlayer(event) {
     input.value = "";
     showToast(`Jogador ${name} cadastrado com sucesso.`);
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao cadastrar jogador:", error);
     showToast("Não foi possível cadastrar o jogador.");
   }
 }
@@ -503,7 +498,7 @@ async function renamePlayer(id) {
     await updateDoc(doc(db, "players", id), { name });
     showToast("Nome do jogador alterado com sucesso.");
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao alterar nome:", error);
     showToast("Não foi possível alterar o nome.");
   }
 }
@@ -528,7 +523,7 @@ async function removePlayer(id) {
     await deleteDoc(doc(db, "players", id));
     showToast(`Jogador ${player.name} removido.`);
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao remover jogador:", error);
 
     showToast(
       "Não foi possível remover o jogador. Verifique as permissões do Firebase."
@@ -559,7 +554,7 @@ async function registerResult(id, result) {
         : `Derrota registrada para ${player.name}: -${POINTS_PER_LOSS} pontos.`
     );
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao registrar resultado:", error);
     showToast("Não foi possível registrar o resultado.");
   }
 }
@@ -601,7 +596,7 @@ async function addManualPoints(id, amount) {
       `${points > 0 ? "a" : "de"} ${player.name}.`
     );
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao atualizar pontos:", error);
     showToast("Não foi possível atualizar os pontos.");
   }
 }
@@ -718,10 +713,20 @@ function createAdminLogin() {
 
       showToast("Login administrativo realizado com sucesso.");
     } catch (error) {
-      console.error(error);
+      console.error("Erro no login:", error);
+
+      const errorMessages = {
+        "auth/invalid-email": "O formato do e-mail é inválido.",
+        "auth/user-not-found": "Usuário não encontrado.",
+        "auth/wrong-password": "E-mail ou senha incorretos.",
+        "auth/invalid-credential": "E-mail ou senha incorretos.",
+        "auth/too-many-requests": "Muitas tentativas. Tente novamente mais tarde.",
+        "auth/api-key-not-valid": "A chave de API do Firebase não foi aceita. Confira a configuração do projeto."
+      };
 
       errorMessage.textContent =
-        "Não foi possível entrar. Confira o e-mail e a senha.";
+        errorMessages[error.code] ||
+        `Não foi possível entrar. Código: ${error.code || error.message}`;
     } finally {
       if (document.body.contains(button)) {
         button.disabled = false;
@@ -746,7 +751,7 @@ async function closeAdmin() {
     await signOut(auth);
     showToast("Sessão encerrada.");
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao encerrar sessão:", error);
     showToast("Não foi possível encerrar a sessão.");
   }
 }
@@ -814,7 +819,7 @@ function listenToAuthentication() {
       try {
         await signOut(auth);
       } catch (error) {
-        console.error(error);
+        console.error("Erro ao encerrar sessão não autorizada:", error);
       }
     }
   });
@@ -930,8 +935,8 @@ function createChampionImageUrl(
   if (!championId || !version) return "";
 
   return (
-    `https://ddragon.leagueoflegends.com/cdn/` +
-    `${version}/img/champion/${encodeURIComponent(championId)}.png`
+    `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/` +
+    `${encodeURIComponent(championId)}.png`
   );
 }
 
@@ -1458,13 +1463,10 @@ function initialize() {
   initializeTabs();
 
   $("#playerForm")?.addEventListener("submit", addPlayer);
-
   $("#adminBtn")?.addEventListener("click", toggleAdmin);
-
   $("#logoutBtn")?.addEventListener("click", closeAdmin);
 
   $("#adminHistory")?.addEventListener("click", handleAdminClick);
-
   $("#adminHistory")?.addEventListener("submit", handleManualPoints);
 
   initializeChampionRoulette();
