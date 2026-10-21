@@ -9,50 +9,39 @@
   <title>WR Competitive — Ranking X1</title>
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-  <!-- CABEÇALHO -->
   <header class="topbar">
     <a href="#inicio" class="brand" aria-label="WR Competitive - Início">
       <span class="brand-icon">X1</span>
       <span>WR <b>COMPETITIVE</b></span>
     </a>
-
-    <button id="adminBtn" class="admin-btn" type="button">
-      Login
-    </button>
+    <button id="adminBtn" class="admin-btn" type="button">Login</button>
   </header>
 
   <main class="container" id="inicio">
-
-    <!-- APRESENTAÇÃO -->
     <section class="hero">
       <div>
         <span class="eyebrow">WILD RIFT • COMPETITIVO</span>
         <h1>RANKING <span>X1</span></h1>
         <p>Uma batalha. Um vencedor. Uma posição a conquistar.</p>
       </div>
-
       <div class="season">
         <span class="live-dot"></span>
         <span>TEMPORADA 01</span>
       </div>
     </section>
 
-    <!-- ESTATÍSTICAS -->
     <section class="stats-grid" aria-label="Estatísticas do ranking">
       <article class="stat-card">
         <span>JOGADORES</span>
         <strong id="totalPlayers">0</strong>
         <small>Competidores cadastrados</small>
       </article>
-
       <article class="stat-card">
         <span>PARTIDAS</span>
         <strong id="totalMatches">0</strong>
         <small>Resultados individuais registrados</small>
       </article>
-
       <article class="stat-card">
         <span>LÍDER DO RANKING</span>
         <strong id="leaderName">—</strong>
@@ -60,217 +49,78 @@
       </article>
     </section>
 
-    <!-- ROLETA DE CAMPEÕES -->
     <section id="championRoulette" class="panel roulette-panel">
-
       <div class="section-heading">
         <div>
           <span class="eyebrow">FERRAMENTA COMPETITIVA</span>
           <h2>Roleta de campeões</h2>
-          <p class="roulette-description">
-            Sorteie seu próximo campeão para o desafio de X1.
-          </p>
+          <p class="roulette-description">Sorteie seu próximo campeão para o desafio de X1.</p>
         </div>
-
-        <span class="counter" id="championCount">
-          Carregando...
-        </span>
+        <span class="counter" id="championCount">Carregando...</span>
       </div>
 
-      <!-- FILTROS POR CLASSE -->
-      <div
-        class="role-filters"
-        id="roleFilters"
-        aria-label="Filtrar por classe"
-      >
-        <button
-          type="button"
-          class="role-filter active"
-          data-role="all"
-          aria-pressed="true"
-        >
-          Todas
-        </button>
-
-        <button
-          type="button"
-          class="role-filter"
-          data-role="tank"
-          aria-pressed="false"
-        >
-          Tank
-        </button>
-
-        <button
-          type="button"
-          class="role-filter"
-          data-role="fighter"
-          aria-pressed="false"
-        >
-          Lutador
-        </button>
-
-        <button
-          type="button"
-          class="role-filter"
-          data-role="mage"
-          aria-pressed="false"
-        >
-          Mago
-        </button>
-
-        <button
-          type="button"
-          class="role-filter"
-          data-role="assassin"
-          aria-pressed="false"
-        >
-          Assassino
-        </button>
-
-        <button
-          type="button"
-          class="role-filter"
-          data-role="marksman"
-          aria-pressed="false"
-        >
-          Atirador
-        </button>
-
-        <button
-          type="button"
-          class="role-filter"
-          data-role="support"
-          aria-pressed="false"
-        >
-          Suporte
-        </button>
+      <div class="role-filters" id="roleFilters" aria-label="Filtrar por classe">
+        <button type="button" class="role-filter active" data-role="all" aria-pressed="true">Todas</button>
+        <button type="button" class="role-filter" data-role="tank" aria-pressed="false">Tank</button>
+        <button type="button" class="role-filter" data-role="fighter" aria-pressed="false">Lutador</button>
+        <button type="button" class="role-filter" data-role="mage" aria-pressed="false">Mago</button>
+        <button type="button" class="role-filter" data-role="assassin" aria-pressed="false">Assassino</button>
+        <button type="button" class="role-filter" data-role="marksman" aria-pressed="false">Atirador</button>
+        <button type="button" class="role-filter" data-role="support" aria-pressed="false">Suporte</button>
       </div>
 
-      <!-- ÁREA DA ROLETA -->
       <div class="roulette-layout">
-
         <div class="roulette-stage" id="rouletteStage">
-
-          <!-- ESTADO INICIAL -->
-          <div
-            class="roulette-placeholder"
-            id="roulettePlaceholder"
-          >
+          <div class="roulette-placeholder" id="roulettePlaceholder">
             <span class="roulette-symbol">X1</span>
-
             <strong>PREPARADO PARA O SORTEIO?</strong>
-
-            <span>
-              Escolha suas classes e gire a roleta.
-            </span>
+            <span>Escolha suas classes e gire a roleta.</span>
           </div>
 
-          <!-- RESULTADO DO SORTEIO -->
-          <div
-            id="championResult"
-            class="champion-result hidden"
-            aria-live="polite"
-          >
-
-            <!-- ÍCONE DO CAMPEÃO -->
+          <div id="championResult" class="champion-result hidden" aria-live="polite">
             <div class="champion-portrait">
-              <img
-                id="championImage"
-                src=""
-                alt="Ícone do campeão sorteado"
-                loading="eager"
-                decoding="async"
-              >
-
-              <span
-                class="champion-portrait-glow"
-                aria-hidden="true"
-              ></span>
+              <img id="championImage" src="" alt="Ícone do campeão sorteado" loading="eager" decoding="async">
+              <span class="champion-portrait-glow" aria-hidden="true"></span>
             </div>
-
-            <span class="result-label">
-              CAMPEÃO SORTEADO
-            </span>
-
+            <span class="result-label">CAMPEÃO SORTEADO</span>
             <h3 id="championName"></h3>
-
             <p id="championRoles"></p>
           </div>
-
         </div>
 
-        <!-- CONTROLES -->
         <div class="roulette-actions">
-
           <div class="roulette-summary">
             <span>CAMPEÕES DISPONÍVEIS</span>
             <strong id="filteredChampionCount">—</strong>
           </div>
 
           <label class="roulette-check">
-            <input
-              type="checkbox"
-              id="avoidRepeat"
-              checked
-            >
+            <input type="checkbox" id="avoidRepeat" checked>
             <span>Evitar campeões repetidos</span>
           </label>
 
-          <button
-            id="spinRoulette"
-            class="primary-btn"
-            type="button"
-            disabled
-          >
-            Carregando campeões...
-          </button>
-
-          <button
-            id="resetRoulette"
-            class="secondary-btn"
-            type="button"
-          >
-            Reiniciar sorteios
-          </button>
-
-          <p
-            id="rouletteStatus"
-            class="form-hint"
-            aria-live="polite"
-          >
-            Preparando catálogo de campeões...
-          </p>
-
+          <button id="spinRoulette" class="primary-btn" type="button" disabled>Carregando campeões...</button>
+          <button id="resetRoulette" class="secondary-btn" type="button">Reiniciar sorteios</button>
+          <p id="rouletteStatus" class="form-hint" aria-live="polite">Preparando catálogo de campeões...</p>
         </div>
       </div>
 
-      <!-- CATÁLOGO -->
       <div class="champion-catalog-heading">
         <h3>Catálogo de campeões</h3>
         <span id="catalogCount">0 campeões</span>
       </div>
-
       <div id="championCatalog" class="champion-catalog">
-        <p class="form-hint">
-          Carregando catálogo...
-        </p>
+        <p class="form-hint">Carregando catálogo...</p>
       </div>
-
     </section>
 
-    <!-- RANKING DE JOGADORES -->
     <section class="panel">
-
       <div class="section-heading">
         <div>
           <span class="eyebrow">CLASSIFICAÇÃO OFICIAL</span>
           <h2>Ranking de jogadores</h2>
         </div>
-
-        <span class="counter" id="rankingCount">
-          0 jogadores
-        </span>
+        <span class="counter" id="rankingCount">0 jogadores</span>
       </div>
 
       <div class="table-wrap">
@@ -284,156 +134,64 @@
               <th>APROV.</th>
             </tr>
           </thead>
-
           <tbody id="rankingBody"></tbody>
         </table>
       </div>
-
-      <div id="emptyRanking" class="empty-state hidden">
-        Nenhum jogador cadastrado ainda.
-      </div>
-
+      <div id="emptyRanking" class="empty-state hidden">Nenhum jogador cadastrado ainda.</div>
     </section>
 
-    <!-- PAINEL ADMINISTRATIVO -->
     <section id="adminPanel" class="panel hidden">
-
       <div class="section-heading">
         <div>
           <span class="eyebrow">ACESSO RESTRITO</span>
           <h2>Painel administrativo</h2>
         </div>
-
-        <button
-          id="logoutBtn"
-          class="secondary-btn"
-          type="button"
-        >
-          Sair
-        </button>
+        <button id="logoutBtn" class="secondary-btn" type="button">Sair</button>
       </div>
 
       <div class="admin-grid">
-
         <form id="playerForm" class="form-card">
           <h3>Cadastrar jogador</h3>
-
-          <label for="playerName">
-            Nome do jogador
-          </label>
-
-          <input
-            id="playerName"
-            name="playerName"
-            maxlength="24"
-            placeholder="Ex.: Henrique"
-            autocomplete="off"
-            required
-          >
-
-          <button class="primary-btn" type="submit">
-            + Adicionar jogador
-          </button>
+          <label for="playerName">Nome do jogador</label>
+          <input id="playerName" name="playerName" maxlength="24" placeholder="Ex.: Henrique" autocomplete="off" required>
+          <button class="primary-btn" type="submit">+ Adicionar jogador</button>
         </form>
-
       </div>
 
       <div class="history-admin">
         <h3>Gerenciar jogadores</h3>
-
-        <p class="form-hint">
-          Registre vitórias e derrotas, adicione pontos manualmente
-          e acompanhe o desempenho de cada jogador.
-        </p>
-
+        <p class="form-hint">Registre vitórias e derrotas, adicione pontos manualmente e acompanhe o desempenho de cada jogador.</p>
         <div id="adminHistory"></div>
       </div>
-
     </section>
-
   </main>
 
-  <!-- RODAPÉ -->
   <footer class="site-footer">
-
-    <span class="footer-brand">
-      © 2026 WR Competitive · Todos os direitos reservados.
-    </span>
-
-    <span class="footer-version">
-      Versão 1.3.0
-      <span class="footer-separator">·</span>
-      Atualizado em 21/10/2026
-    </span>
+    <span class="footer-brand">© 2026 WR Competitive · Todos os direitos reservados.</span>
+    <span class="footer-version">Versão 1.3.0 <span class="footer-separator">·</span> Atualizado em 21/10/2026</span>
 
     <div class="footer-credit">
-
-      <a
-        href="https://www.instagram.com/henrique_luzorio/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="footer-link"
-        aria-label="Instagram de Henrique"
-      >
-        <svg
-          class="footer-social-icon instagram-icon"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
+      <a href="https://www.instagram.com/henrique_luzorio/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="Instagram de Henrique">
+        <svg class="footer-social-icon instagram-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="3" width="18" height="18" rx="5"/>
           <circle cx="12" cy="12" r="4"/>
-          <circle
-            cx="17.5"
-            cy="6.5"
-            r=".7"
-            fill="currentColor"
-          />
+          <circle cx="17.5" cy="6.5" r=".7" fill="currentColor"/>
         </svg>
-
         <span>Instagram: @henrique_luzorio</span>
       </a>
 
       <span class="footer-separator">·</span>
 
-      <a
-        href="https://www.linkedin.com/in/henrique-loz%C3%B3rio-364695319/"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="footer-link"
-        aria-label="LinkedIn de Henrique"
-      >
-        <svg
-          class="footer-social-icon linkedin-icon"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          aria-hidden="true"
-        >
+      <a href="https://www.linkedin.com/in/henrique-loz%C3%B3rio-364695319/" target="_blank" rel="noopener noreferrer" class="footer-link" aria-label="LinkedIn de Henrique">
+        <svg class="footer-social-icon linkedin-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M20.45 2H3.55C2.69 2 2 2.68 2 3.52v16.96c0 .84.69 1.52 1.55 1.52h16.9c.86 0 1.55-.68 1.55-1.52V3.52C22 2.68 21.31 2 20.45 2ZM7.93 18.7H4.97V9.15h2.96v9.55ZM6.45 7.85a1.72 1.72 0 1 1 0-3.44 1.72 1.72 0 0 1 0 3.44ZM19 18.7h-2.96v-4.65c0-1.11-.02-2.54-1.55-2.54-1.55 0-1.79 1.21-1.79 2.46v4.73H9.74V9.15h2.84v1.3h.04c.39-.74 1.36-1.52 2.8-1.52 3 0 3.58 1.97 3.58 4.54v5.23Z"/>
         </svg>
-
         <span>LinkedIn</span>
       </a>
-
     </div>
   </footer>
 
-  <!-- NOTIFICAÇÕES -->
-  <div
-    id="toast"
-    class="toast"
-    role="status"
-    aria-live="polite"
-  ></div>
-
-  <!-- JAVASCRIPT PRINCIPAL -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="script.js"></script>
-
 </body>
 </html>
