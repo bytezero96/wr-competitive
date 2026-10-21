@@ -1,13 +1,11 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-
 import {
   getAuth,
   signInWithEmailAndPassword,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-
 import {
   getFirestore,
   collection,
@@ -20,12 +18,9 @@ import {
   runTransaction
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-/* =========================================================
-   FIREBASE
-========================================================= */
-
+/* FIREBASE */
 const firebaseConfig = {
-  apiKey: "AIzaSyBJrLkfW9aAVJnrcB7hvYFbsJURBGjQU8M",
+  apiKey: "AIzaSyBJrLkfW9aAVJnrcB7hvYFbsJURBGJQU8M",
   authDomain: "duelosrankeadoswr.firebaseapp.com",
   projectId: "duelosrankeadoswr",
   storageBucket: "duelosrankeadoswr.firebasestorage.app",
@@ -35,79 +30,45 @@ const firebaseConfig = {
 };
 
 const ADMIN_UID = "U7ohORMjr1O9Ubby2WFMztAe8Au2";
-
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
-
 const playersCollection = collection(db, "players");
-
-/* =========================================================
-   CONFIGURAÇÕES DO RANKING
-========================================================= */
 
 const POINTS_PER_WIN = 20;
 const POINTS_PER_LOSS = 15;
 
-/* =========================================================
-   ESTADO
-========================================================= */
-
-let data = {
-  players: [],
-  stats: {}
-};
-
+let data = { players: [], stats: {} };
 let isAdmin = false;
 let initialized = false;
 let toastTimeout = null;
 let unsubscribePlayers = null;
 
-/* =========================================================
-   UTILITÁRIOS
-========================================================= */
-
-const $ = (selector) => document.querySelector(selector);
+const $ = selector => document.querySelector(selector);
 
 function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => {
-    const entities = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    };
-
-    return entities[char];
-  });
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
 }
 
 function normalizeNumber(value) {
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) {
-    return 0;
-  }
-
-  return Math.floor(number);
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.floor(n) : 0;
 }
 
 function generatePlayerId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return (
-    "player_" +
-    Date.now() +
-    "_" +
-    Math.random().toString(36).slice(2, 10)
-  );
+  return crypto?.randomUUID
+    ? crypto.randomUUID()
+    : `player_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function getPlayer(playerId) {
-  return data.players.find((player) => player.id === playerId);
+function getPlayer(id) {
+  return data.players.find(player => player.id === id);
 }
 
 function showToast(message, duration = 3200) {
@@ -120,7 +81,6 @@ function showToast(message, duration = 3200) {
 
   toast.textContent = message;
   toast.classList.add("show");
-
   clearTimeout(toastTimeout);
 
   toastTimeout = setTimeout(() => {
@@ -129,11 +89,7 @@ function showToast(message, duration = 3200) {
 }
 
 function requireAdmin() {
-  if (
-    !auth.currentUser ||
-    auth.currentUser.uid !== ADMIN_UID ||
-    !isAdmin
-  ) {
+  if (!auth.currentUser || auth.currentUser.uid !== ADMIN_UID || !isAdmin) {
     showToast("Você não tem permissão para realizar essa ação.");
     return false;
   }
@@ -141,335 +97,188 @@ function requireAdmin() {
   return true;
 }
 
-/* =========================================================
-   CÁLCULO DE PONTOS E ESTATÍSTICAS
-========================================================= */
+/* RANKING */
 
 function getPlayerStats() {
   const stats = {};
 
-  data.players.forEach((player) => {
+  data.players.forEach(player => {
     const wins = normalizeNumber(player.wins);
     const losses = normalizeNumber(player.losses);
     const manualPoints = normalizeNumber(player.manualPoints);
-
-    const points =
-      wins * POINTS_PER_WIN -
-      losses * POINTS_PER_LOSS +
-      manualPoints;
-
     const totalMatches = wins + losses;
-
-    const accuracy =
-      totalMatches > 0
-        ? (wins / totalMatches) * 100
-        : 0;
 
     stats[player.id] = {
       wins,
       losses,
       manualPoints,
-      points,
+      points: wins * POINTS_PER_WIN - losses * POINTS_PER_LOSS + manualPoints,
       totalMatches,
-      accuracy
+      accuracy: totalMatches ? wins / totalMatches * 100 : 0
     };
   });
 
   return stats;
 }
 
-/* =========================================================
-   RENDERIZAÇÃO DO RANKING PRINCIPAL
-   Sem coluna ou emblema de elo
-========================================================= */
+function sortPlayers() {
+  return [...data.players].sort((a, b) => {
+    const A = data.stats[a.id];
+    const B = data.stats[b.id];
+
+    return B.points - A.points ||
+      B.wins - A.wins ||
+      A.losses - B.losses ||
+      a.name.localeCompare(b.name, "pt-BR");
+  });
+}
 
 function renderRanking() {
-  const rankingBody = $("#rankingBody");
+  const body = $("#rankingBody");
+  if (!body) return;
 
-  if (!rankingBody) {
-    return;
+  const sorted = sortPlayers();
+
+  body.innerHTML = sorted.map((player, i) => {
+    const s = data.stats[player.id];
+
+    return `
+      <tr>
+        <td>
+          <span class="ranking-position position-${i + 1}">${i + 1}</span>
+        </td>
+        <td>
+          <div class="player-cell">
+            <strong>${escapeHTML(player.name)}</strong>
+          </div>
+        </td>
+        <td><strong class="points-value">${s.points}</strong></td>
+        <td>
+          <span class="wins-value">${s.wins}</span> /
+          <span class="losses-value">${s.losses}</span>
+        </td>
+        <td>${s.accuracy.toFixed(1)}%</td>
+      </tr>
+    `;
+  }).join("");
+
+  const matches = Object.values(data.stats)
+    .reduce((sum, s) => sum + s.totalMatches, 0);
+
+  if ($("#totalPlayers")) {
+    $("#totalPlayers").textContent = data.players.length;
   }
 
-  const sortedPlayers = [...data.players].sort((a, b) => {
-    const statsA = data.stats[a.id];
-    const statsB = data.stats[b.id];
-
-    if (statsB.points !== statsA.points) {
-      return statsB.points - statsA.points;
-    }
-
-    if (statsB.wins !== statsA.wins) {
-      return statsB.wins - statsA.wins;
-    }
-
-    if (statsA.losses !== statsB.losses) {
-      return statsA.losses - statsB.losses;
-    }
-
-    return a.name.localeCompare(b.name, "pt-BR");
-  });
-
-  rankingBody.innerHTML = sortedPlayers
-    .map((player, index) => {
-      const stats = data.stats[player.id];
-
-      return `
-        <tr>
-          <td>
-            <span class="ranking-position position-${index + 1}">
-              ${index + 1}
-            </span>
-          </td>
-
-          <td>
-            <div class="player-cell">
-              <strong>${escapeHTML(player.name)}</strong>
-            </div>
-          </td>
-
-          <td>
-            <strong class="points-value">
-              ${stats.points}
-            </strong>
-          </td>
-
-          <td>
-            <span class="wins-value">${stats.wins}</span>
-            /
-            <span class="losses-value">${stats.losses}</span>
-          </td>
-
-          <td>
-            ${stats.accuracy.toFixed(1)}%
-          </td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  const totalPlayers = $("#totalPlayers");
-  const totalMatches = $("#totalMatches");
-  const leaderName = $("#leaderName");
-  const leaderPoints = $("#leaderPoints");
-  const rankingCount = $("#rankingCount");
-  const emptyRanking = $("#emptyRanking");
-
-  const matchCount = Object.values(data.stats).reduce(
-    (total, stats) => total + stats.totalMatches,
-    0
-  );
-
-  if (totalPlayers) {
-    totalPlayers.textContent = data.players.length;
+  if ($("#totalMatches")) {
+    $("#totalMatches").textContent = matches;
   }
 
-  if (totalMatches) {
-    totalMatches.textContent = matchCount;
+  if ($("#rankingCount")) {
+    $("#rankingCount").textContent =
+      `${data.players.length} jogador${data.players.length === 1 ? "" : "es"}`;
   }
 
-  if (rankingCount) {
-    rankingCount.textContent =
-      `${data.players.length} jogador` +
-      (data.players.length === 1 ? "" : "es");
+  if ($("#emptyRanking")) {
+    $("#emptyRanking").classList.toggle("hidden", sorted.length > 0);
   }
 
-  if (sortedPlayers.length > 0) {
-    const leader = sortedPlayers[0];
-    const leaderStats = data.stats[leader.id];
-
-    if (leaderName) {
-      leaderName.textContent = leader.name;
-    }
-
-    if (leaderPoints) {
-      leaderPoints.textContent = `${leaderStats.points} pontos`;
-    }
+  if (sorted.length) {
+    $("#leaderName").textContent = sorted[0].name;
+    $("#leaderPoints").textContent = `${data.stats[sorted[0].id].points} pontos`;
   } else {
-    if (leaderName) {
-      leaderName.textContent = "—";
-    }
-
-    if (leaderPoints) {
-      leaderPoints.textContent = "0 pontos";
-    }
-  }
-
-  if (emptyRanking) {
-    emptyRanking.classList.toggle(
-      "hidden",
-      sortedPlayers.length > 0
-    );
+    $("#leaderName").textContent = "—";
+    $("#leaderPoints").textContent = "0 pontos";
   }
 }
 
-/* =========================================================
-   PAINEL ADMINISTRATIVO
-   Sem exibição de elo
-========================================================= */
-
 function renderAdminHistory() {
-  const adminHistory = $("#adminHistory");
+  const host = $("#adminHistory");
+  if (!host) return;
 
-  if (!adminHistory) {
+  const sorted = sortPlayers();
+
+  if (!sorted.length) {
+    host.innerHTML =
+      '<div class="empty-state">Nenhum jogador cadastrado para gerenciar.</div>';
     return;
   }
 
-  if (data.players.length === 0) {
-    adminHistory.innerHTML = `
-      <div class="empty-state">
-        Nenhum jogador cadastrado para gerenciar.
-      </div>
-    `;
-    return;
-  }
-
-  const sortedPlayers = [...data.players].sort((a, b) => {
-    const statsA = data.stats[a.id];
-    const statsB = data.stats[b.id];
-
-    if (statsB.points !== statsA.points) {
-      return statsB.points - statsA.points;
-    }
-
-    return a.name.localeCompare(b.name, "pt-BR");
-  });
-
-  adminHistory.innerHTML = sortedPlayers.map((player) => {
-    const stats = data.stats[player.id];
+  host.innerHTML = sorted.map(player => {
+    const s = data.stats[player.id];
+    const id = escapeHTML(player.id);
 
     return `
-      <div class="individual-player-row" data-player-id="${escapeHTML(player.id)}">
-
+      <div class="individual-player-row" data-player-id="${id}">
         <div class="individual-player-info">
           <h4>${escapeHTML(player.name)}</h4>
 
           <div class="individual-player-rank">
-            <strong>${stats.points} pontos</strong>
+            <strong>${s.points} pontos</strong>
           </div>
 
           <div class="individual-player-stats">
-            <span>Vitórias: <strong>${stats.wins}</strong></span>
-            <span>Derrotas: <strong>${stats.losses}</strong></span>
-            <span>Aproveitamento: <strong>${stats.accuracy.toFixed(1)}%</strong></span>
-            <span>Pontos manuais: <strong>${stats.manualPoints}</strong></span>
+            <span>Vitórias: <strong>${s.wins}</strong></span>
+            <span>Derrotas: <strong>${s.losses}</strong></span>
+            <span>Aproveitamento: <strong>${s.accuracy.toFixed(1)}%</strong></span>
+            <span>Pontos manuais: <strong>${s.manualPoints}</strong></span>
           </div>
         </div>
 
         <div class="individual-player-actions">
-          <button
-            type="button"
-            class="primary-btn"
-            data-action="win"
-            data-player-id="${escapeHTML(player.id)}"
-          >
-            + Vitória
-          </button>
+          <button type="button" class="primary-btn"
+            data-action="win" data-player-id="${id}">+ Vitória</button>
 
-          <button
-            type="button"
-            class="secondary-btn"
-            data-action="loss"
-            data-player-id="${escapeHTML(player.id)}"
-          >
-            − Derrota
-          </button>
+          <button type="button" class="secondary-btn"
+            data-action="loss" data-player-id="${id}">− Derrota</button>
 
-          <button
-            type="button"
-            class="edit-player-btn"
-            data-action="edit-name"
-            data-player-id="${escapeHTML(player.id)}"
-          >
-            Alterar nome
-          </button>
+          <button type="button" class="edit-player-btn"
+            data-action="edit-name" data-player-id="${id}">Alterar nome</button>
 
-          <button
-            type="button"
-            class="remove-player-btn"
-            data-action="remove-player"
-            data-player-id="${escapeHTML(player.id)}"
-          >
-            Remover jogador
-          </button>
+          <button type="button" class="remove-player-btn"
+            data-action="remove-player" data-player-id="${id}">Remover jogador</button>
         </div>
 
-        <form
-          class="manual-points-form"
-          data-player-id="${escapeHTML(player.id)}"
-        >
-          <label for="manual-points-${escapeHTML(player.id)}">
-            Adicionar ou retirar pontos
-          </label>
-
+        <form class="manual-points-form" data-player-id="${id}">
+          <label for="manual-points-${id}">Adicionar ou retirar pontos</label>
           <div class="manual-points-controls">
-            <input
-              id="manual-points-${escapeHTML(player.id)}"
-              name="manualPoints"
-              type="number"
-              step="1"
-              required
-              placeholder="Ex.: 50 ou -20"
-            >
-
-            <button
-              class="primary-btn"
-              type="submit"
-            >
-              Aplicar
-            </button>
+            <input id="manual-points-${id}" name="manualPoints"
+              type="number" step="1" required placeholder="Ex.: 50 ou -20">
+            <button class="primary-btn" type="submit">Aplicar</button>
           </div>
         </form>
-
       </div>
     `;
   }).join("");
 }
 
-/* =========================================================
-   CADASTRAR JOGADOR
-========================================================= */
+function renderAll() {
+  data.stats = getPlayerStats();
+  renderRanking();
+  renderAdminHistory();
+}
+
+/* ADMINISTRAÇÃO DE JOGADORES */
 
 async function addPlayer(event) {
   event.preventDefault();
-
-  if (!requireAdmin()) {
-    return;
-  }
+  if (!requireAdmin()) return;
 
   const input = $("#playerName");
+  const name = input?.value.trim();
 
-  if (!input) {
-    return;
-  }
-
-  const name = input.value.trim();
-
-  if (!name) {
-    showToast("Digite o nome do jogador.");
-    return;
-  }
-
+  if (!name) return showToast("Digite o nome do jogador.");
   if (name.length > 24) {
-    showToast("O nome pode ter no máximo 24 caracteres.");
-    return;
+    return showToast("O nome pode ter no máximo 24 caracteres.");
   }
 
-  const normalizedName = name.toLocaleLowerCase("pt-BR");
-
-  const alreadyExists = data.players.some(
-    (player) =>
-      player.name.trim().toLocaleLowerCase("pt-BR") === normalizedName
-  );
-
-  if (alreadyExists) {
-    showToast("Já existe um jogador com esse nome.");
-    return;
+  if (data.players.some(p =>
+    p.name.trim().toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR")
+  )) {
+    return showToast("Já existe um jogador com esse nome.");
   }
-
-  const playerId = generatePlayerId();
 
   try {
-    await setDoc(doc(db, "players", playerId), {
+    await setDoc(doc(db, "players", generatePlayerId()), {
       name,
       wins: 0,
       losses: 0,
@@ -479,266 +288,145 @@ async function addPlayer(event) {
     input.value = "";
     showToast(`Jogador ${name} cadastrado com sucesso.`);
   } catch (error) {
-    console.error("Erro ao cadastrar jogador:", error);
+    console.error(error);
     showToast("Não foi possível cadastrar o jogador.");
   }
 }
 
-/* =========================================================
-   ALTERAR NOME DO JOGADOR
-========================================================= */
+async function renamePlayer(id) {
+  if (!requireAdmin()) return;
 
-async function renamePlayer(playerId) {
-  if (!requireAdmin()) {
-    return;
-  }
+  const player = getPlayer(id);
+  if (!player) return showToast("Jogador não encontrado.");
 
-  const player = getPlayer(playerId);
+  const value = prompt("Digite o novo nome do jogador:", player.name);
+  if (value === null) return;
 
-  if (!player) {
-    showToast("Jogador não encontrado.");
-    return;
-  }
+  const name = value.trim();
 
-  const newName = window.prompt(
-    "Digite o novo nome do jogador:",
-    player.name
-  );
-
-  if (newName === null) {
-    return;
-  }
-
-  const name = newName.trim();
-
-  if (!name) {
-    showToast("O nome do jogador não pode ficar vazio.");
-    return;
-  }
-
+  if (!name) return showToast("O nome do jogador não pode ficar vazio.");
   if (name.length > 24) {
-    showToast("O nome pode ter no máximo 24 caracteres.");
-    return;
+    return showToast("O nome pode ter no máximo 24 caracteres.");
   }
 
-  const normalizedName = name.toLocaleLowerCase("pt-BR");
-
-  const alreadyExists = data.players.some(
-    (otherPlayer) =>
-      otherPlayer.id !== playerId &&
-      otherPlayer.name.trim().toLocaleLowerCase("pt-BR") === normalizedName
-  );
-
-  if (alreadyExists) {
-    showToast("Já existe outro jogador com esse nome.");
-    return;
+  if (data.players.some(p =>
+    p.id !== id &&
+    p.name.trim().toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR")
+  )) {
+    return showToast("Já existe outro jogador com esse nome.");
   }
 
   try {
-    await updateDoc(doc(db, "players", playerId), {
-      name
-    });
-
+    await updateDoc(doc(db, "players", id), { name });
     showToast("Nome do jogador alterado com sucesso.");
   } catch (error) {
-    console.error("Erro ao alterar nome:", error);
-    showToast("Não foi possível alterar o nome do jogador.");
+    console.error(error);
+    showToast("Não foi possível alterar o nome.");
   }
 }
 
-/* =========================================================
-   REMOVER JOGADOR
-========================================================= */
+async function removePlayer(id) {
+  if (!requireAdmin()) return;
 
-async function removePlayer(playerId) {
-  if (!requireAdmin()) {
-    return;
-  }
+  const player = getPlayer(id);
+  if (!player) return showToast("Jogador não encontrado.");
 
-  const player = getPlayer(playerId);
-
-  if (!player) {
-    showToast("Jogador não encontrado.");
-    return;
-  }
-
-  const confirmed = window.confirm(
-    `Tem certeza que deseja remover o jogador "${player.name}"?\n\n` +
-    "Essa ação excluirá o cadastro e os dados de vitórias, derrotas " +
-    "e pontos manuais desse jogador. Essa operação não pode ser desfeita."
-  );
-
-  if (!confirmed) {
+  if (!confirm(`Tem certeza que deseja remover "${player.name}"? Esta ação não pode ser desfeita.`)) {
     return;
   }
 
   try {
-    await deleteDoc(doc(db, "players", playerId));
-
-    showToast(`Jogador ${player.name} removido com sucesso.`);
+    await deleteDoc(doc(db, "players", id));
+    showToast(`Jogador ${player.name} removido.`);
   } catch (error) {
-    console.error("Erro ao remover jogador:", error);
-    showToast(
-      "Não foi possível remover o jogador. Verifique as permissões do Firebase."
-    );
+    console.error(error);
+    showToast("Não foi possível remover o jogador. Verifique as permissões do Firebase.");
   }
 }
 
-/* =========================================================
-   REGISTRAR VITÓRIA OU DERROTA
-========================================================= */
+async function registerResult(id, result) {
+  if (!requireAdmin()) return;
 
-async function registerResult(playerId, result) {
-  if (!requireAdmin()) {
-    return;
-  }
-
-  const player = getPlayer(playerId);
-
-  if (!player) {
-    showToast("Jogador não encontrado.");
-    return;
-  }
-
-  if (result !== "win" && result !== "loss") {
-    return;
-  }
-
-  const field = result === "win" ? "wins" : "losses";
+  const player = getPlayer(id);
+  if (!player) return showToast("Jogador não encontrado.");
+  if (!["win", "loss"].includes(result)) return;
 
   try {
-    await updateDoc(doc(db, "players", playerId), {
-      [field]: increment(1)
+    await updateDoc(doc(db, "players", id), {
+      [result === "win" ? "wins" : "losses"]: increment(1)
     });
 
-    if (result === "win") {
-      showToast(
-        `Vitória registrada para ${player.name}: +${POINTS_PER_WIN} pontos.`
-      );
-    } else {
-      showToast(
-        `Derrota registrada para ${player.name}: -${POINTS_PER_LOSS} pontos.`
-      );
-    }
+    showToast(
+      result === "win"
+        ? `Vitória registrada para ${player.name}: +${POINTS_PER_WIN} pontos.`
+        : `Derrota registrada para ${player.name}: -${POINTS_PER_LOSS} pontos.`
+    );
   } catch (error) {
-    console.error("Erro ao registrar resultado:", error);
+    console.error(error);
     showToast("Não foi possível registrar o resultado.");
   }
 }
 
-/* =========================================================
-   ADICIONAR OU RETIRAR PONTOS MANUAIS
-========================================================= */
+async function addManualPoints(id, amount) {
+  if (!requireAdmin()) return;
 
-async function addManualPoints(playerId, amount) {
-  if (!requireAdmin()) {
-    return;
-  }
-
-  const player = getPlayer(playerId);
-
-  if (!player) {
-    showToast("Jogador não encontrado.");
-    return;
-  }
+  const player = getPlayer(id);
+  if (!player) return showToast("Jogador não encontrado.");
 
   const points = Number(amount);
 
   if (!Number.isSafeInteger(points) || points === 0) {
-    showToast("Informe um número inteiro diferente de zero.");
-    return;
+    return showToast("Informe um número inteiro diferente de zero.");
   }
 
   try {
-    await runTransaction(db, async (transaction) => {
-      const playerRef = doc(db, "players", playerId);
-      const playerSnapshot = await transaction.get(playerRef);
+    await runTransaction(db, async transaction => {
+      const ref = doc(db, "players", id);
+      const snapshot = await transaction.get(ref);
 
-      if (!playerSnapshot.exists()) {
-        throw new Error("PLAYER_NOT_FOUND");
-      }
+      if (!snapshot.exists()) throw new Error("PLAYER_NOT_FOUND");
 
-      const currentPoints = normalizeNumber(
-        playerSnapshot.data().manualPoints
-      );
-
-      transaction.update(playerRef, {
-        manualPoints: currentPoints + points
+      transaction.update(ref, {
+        manualPoints: normalizeNumber(snapshot.data().manualPoints) + points
       });
     });
 
     showToast(
-      points > 0
-        ? `${points} pontos adicionados a ${player.name}.`
-        : `${Math.abs(points)} pontos retirados de ${player.name}.`
+      `${points > 0 ? "Adicionados" : "Retirados"} ${Math.abs(points)} pontos ` +
+      `${points > 0 ? "a" : "de"} ${player.name}.`
     );
   } catch (error) {
-    console.error("Erro ao atualizar pontos manuais:", error);
+    console.error(error);
     showToast("Não foi possível atualizar os pontos.");
   }
 }
 
-/* =========================================================
-   LOGIN DO ADMINISTRADOR
-========================================================= */
+/* LOGIN ADMINISTRATIVO */
 
 function createAdminLogin() {
-  if ($("#adminLoginOverlay")) {
-    return;
-  }
+  if ($("#adminLoginOverlay")) return;
 
   const overlay = document.createElement("div");
-
   overlay.id = "adminLoginOverlay";
   overlay.className = "login-overlay";
 
   overlay.innerHTML = `
     <div class="login-modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-      <button
-        type="button"
-        class="login-close"
-        id="closeLoginBtn"
-        aria-label="Fechar"
-      >
-        ×
-      </button>
-
+      <button type="button" class="login-close" id="closeLoginBtn" aria-label="Fechar">×</button>
       <span class="eyebrow">ÁREA RESTRITA</span>
-
       <h2 id="loginTitle">Login administrativo</h2>
-
-      <p class="form-hint">
-        Entre com as credenciais do administrador.
-      </p>
+      <p class="form-hint">Entre com as credenciais do administrador.</p>
 
       <form id="adminLoginForm">
         <label for="adminEmail">E-mail</label>
-        <input
-          id="adminEmail"
-          name="email"
-          type="email"
-          autocomplete="username"
-          placeholder="Seu e-mail"
-          required
-        >
+        <input id="adminEmail" name="email" type="email"
+          autocomplete="username" placeholder="Seu e-mail" required>
 
         <label for="adminPassword">Senha</label>
-        <input
-          id="adminPassword"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="Sua senha"
-          required
-        >
+        <input id="adminPassword" name="password" type="password"
+          autocomplete="current-password" placeholder="Sua senha" required>
 
-        <button
-          class="primary-btn"
-          id="loginSubmitBtn"
-          type="submit"
-        >
-          Entrar
-        </button>
+        <button class="primary-btn" id="loginSubmitBtn" type="submit">Entrar</button>
       </form>
 
       <p id="loginError" class="login-error" aria-live="polite"></p>
@@ -747,295 +435,689 @@ function createAdminLogin() {
 
   document.body.appendChild(overlay);
 
-  $("#closeLoginBtn")?.addEventListener("click", () => {
-    overlay.remove();
+  $("#closeLoginBtn").addEventListener("click", () => overlay.remove());
+
+  overlay.addEventListener("click", event => {
+    if (event.target === overlay) overlay.remove();
   });
 
-  overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) {
-      overlay.remove();
-    }
-  });
-
-  $("#adminLoginForm")?.addEventListener("submit", async (event) => {
+  $("#adminLoginForm").addEventListener("submit", async event => {
     event.preventDefault();
 
-    const email = $("#adminEmail")?.value.trim();
-    const password = $("#adminPassword")?.value;
-    const submitButton = $("#loginSubmitBtn");
-    const errorElement = $("#loginError");
+    const email = $("#adminEmail").value.trim();
+    const password = $("#adminPassword").value;
+    const button = $("#loginSubmitBtn");
+    const errorMessage = $("#loginError");
 
-    if (!email || !password) {
-      return;
-    }
-
-    if (submitButton) {
-      submitButton.disabled = true;
-      submitButton.textContent = "Entrando...";
-    }
-
-    if (errorElement) {
-      errorElement.textContent = "";
-    }
+    button.disabled = true;
+    button.textContent = "Entrando...";
+    errorMessage.textContent = "";
 
     try {
-      const credential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
+      const credential = await signInWithEmailAndPassword(auth, email, password);
 
       if (credential.user.uid !== ADMIN_UID) {
         await signOut(auth);
-
-        if (errorElement) {
-          errorElement.textContent =
-            "Esta conta não tem permissão de administrador.";
-        }
-
+        errorMessage.textContent = "Esta conta não tem permissão de administrador.";
         return;
       }
 
       overlay.remove();
       showToast("Login administrativo realizado com sucesso.");
     } catch (error) {
-      console.error("Erro no login:", error);
-
-      if (errorElement) {
-        errorElement.textContent =
-          "Não foi possível entrar. Confira o e-mail e a senha.";
-      }
+      console.error(error);
+      errorMessage.textContent = "Não foi possível entrar. Confira o e-mail e a senha.";
     } finally {
-      if (submitButton && document.body.contains(submitButton)) {
-        submitButton.disabled = false;
-        submitButton.textContent = "Entrar";
+      if (document.body.contains(button)) {
+        button.disabled = false;
+        button.textContent = "Entrar";
       }
     }
   });
 }
 
-/* =========================================================
-   SAIR DO ADMINISTRADOR
-========================================================= */
+function toggleAdmin() {
+  if (isAdmin && auth.currentUser?.uid === ADMIN_UID) {
+    $("#adminPanel")?.classList.toggle("hidden");
+  } else {
+    createAdminLogin();
+  }
+}
 
 async function closeAdmin() {
   try {
     await signOut(auth);
   } catch (error) {
-    console.error("Erro ao sair:", error);
+    console.error(error);
     showToast("Não foi possível encerrar a sessão.");
   }
 }
 
-function toggleAdmin() {
-  if (isAdmin && auth.currentUser?.uid === ADMIN_UID) {
-    $("#adminPanel")?.classList.toggle("hidden");
-    return;
-  }
-
-  createAdminLogin();
-}
-
-/* =========================================================
-   FIRESTORE: ATUALIZAÇÃO EM TEMPO REAL
-========================================================= */
-
 function startPlayersListener() {
-  if (unsubscribePlayers) {
-    unsubscribePlayers();
-  }
+  unsubscribePlayers?.();
 
   unsubscribePlayers = onSnapshot(
     playersCollection,
-    (snapshot) => {
-      const players = [];
+    snapshot => {
+      data.players = snapshot.docs.map(documentSnapshot => {
+        const player = documentSnapshot.data();
 
-      snapshot.forEach((documentSnapshot) => {
-        const playerData = documentSnapshot.data();
-
-        players.push({
+        return {
           id: documentSnapshot.id,
-          name: String(playerData.name ?? "Sem nome"),
-          wins: normalizeNumber(playerData.wins),
-          losses: normalizeNumber(playerData.losses),
-          manualPoints: normalizeNumber(playerData.manualPoints)
-        });
+          name: String(player.name ?? "Sem nome"),
+          wins: normalizeNumber(player.wins),
+          losses: normalizeNumber(player.losses),
+          manualPoints: normalizeNumber(player.manualPoints)
+        };
       });
-
-      data.players = players;
-      data.stats = getPlayerStats();
 
       renderAll();
     },
-    (error) => {
-      console.error("Erro ao carregar jogadores:", error);
+    error => {
+      console.error(error);
       showToast("Erro ao sincronizar os jogadores com o Firebase.");
     }
   );
 }
 
-/* =========================================================
-   AUTENTICAÇÃO
-========================================================= */
-
 function listenToAuthentication() {
-  onAuthStateChanged(auth, async (user) => {
+  onAuthStateChanged(auth, async user => {
     if (user && user.uid === ADMIN_UID) {
       isAdmin = true;
 
-      const adminBtn = $("#adminBtn");
-      const logoutBtn = $("#logoutBtn");
-      const adminPanel = $("#adminPanel");
-
-      if (adminBtn) {
-        adminBtn.textContent = "Painel ADM";
-      }
-
-      logoutBtn?.classList.remove("hidden");
-      adminPanel?.classList.remove("hidden");
-
+      if ($("#adminBtn")) $("#adminBtn").textContent = "Painel ADM";
+      $("#logoutBtn")?.classList.remove("hidden");
+      $("#adminPanel")?.classList.remove("hidden");
       return;
     }
 
     isAdmin = false;
 
-    const adminBtn = $("#adminBtn");
-    const adminPanel = $("#adminPanel");
-
-    if (adminBtn) {
-      adminBtn.textContent = "Login";
-    }
-
-    adminPanel?.classList.add("hidden");
+    if ($("#adminBtn")) $("#adminBtn").textContent = "Login";
+    $("#adminPanel")?.classList.add("hidden");
     $("#logoutBtn")?.classList.add("hidden");
 
     if (user && user.uid !== ADMIN_UID) {
       try {
         await signOut(auth);
       } catch (error) {
-        console.error("Erro ao encerrar sessão não autorizada:", error);
+        console.error(error);
       }
     }
   });
 }
 
-/* =========================================================
-   EVENTOS DO PAINEL ADMINISTRATIVO
-========================================================= */
+function handleAdminClick(event) {
+  const button = event.target.closest("button[data-action][data-player-id]");
+  if (!button) return;
 
-function handleAdminHistoryClick(event) {
-  const button = event.target.closest(
-    "button[data-action][data-player-id]"
-  );
+  const { playerId, action } = button.dataset;
 
-  if (!button) {
-    return;
-  }
-
-  const playerId = button.dataset.playerId;
-  const action = button.dataset.action;
-
-  if (!playerId) {
-    return;
-  }
-
-  switch (action) {
-    case "win":
-    case "loss":
-      registerResult(playerId, action);
-      break;
-
-    case "edit-name":
-      renamePlayer(playerId);
-      break;
-
-    case "remove-player":
-      removePlayer(playerId);
-      break;
-
-    default:
-      break;
+  if (action === "win" || action === "loss") {
+    registerResult(playerId, action);
+  } else if (action === "edit-name") {
+    renamePlayer(playerId);
+  } else if (action === "remove-player") {
+    removePlayer(playerId);
   }
 }
 
-function handleManualPointsSubmit(event) {
+function handleManualPoints(event) {
   const form = event.target.closest(".manual-points-form");
-
-  if (!form) {
-    return;
-  }
+  if (!form) return;
 
   event.preventDefault();
 
-  const playerId = form.dataset.playerId;
   const input = form.querySelector('[name="manualPoints"]');
-
-  if (!playerId || !input) {
-    return;
-  }
-
-  const amount = Number(input.value);
-
-  if (!Number.isSafeInteger(amount) || amount === 0) {
-    showToast("Informe um número inteiro diferente de zero.");
-    return;
-  }
-
-  addManualPoints(playerId, amount);
+  addManualPoints(form.dataset.playerId, Number(input.value));
 }
 
 /* =========================================================
-   RENDERIZAR TODA A INTERFACE
-   Sem renderização dos elos
+   ROLETA DE CAMPEÕES — WILD RIFT
 ========================================================= */
 
-function renderAll() {
-  data.stats = getPlayerStats();
+const CHAMPION_DATA_URL =
+  "https://ry2x.github.io/WildRift-Merged-Champion-Data/data_pt_BR.json";
 
-  renderRanking();
-  renderAdminHistory();
+/* Versão alternativa para quando a API de versões estiver indisponível. */
+const FALLBACK_DDRAGON_VERSION = "15.20.1";
+
+const ROLE_LABELS = {
+  tank: "Tank",
+  fighter: "Lutador",
+  mage: "Mago",
+  assassin: "Assassino",
+  marksman: "Atirador",
+  support: "Suporte"
+};
+
+const ROLE_ALIASES = {
+  tank: ["tank", "tanque"],
+  fighter: ["fighter", "lutador", "figther"],
+  mage: ["mage", "mago", "magician"],
+  assassin: ["assassin", "assassino"],
+  marksman: ["marksman", "atirador", "adc"],
+  support: ["support", "suporte"]
+};
+
+/* Alguns nomes do catálogo diferem dos IDs do Data Dragon. */
+const CHAMPION_ID_FIXES = {
+  "wukong": "MonkeyKing",
+  "nunu & willump": "Nunu",
+  "dr. mundo": "DrMundo",
+  "jarvan iv": "JarvanIV",
+  "kai'sa": "Kaisa",
+  "kha'zix": "Khazix",
+  "kog'maw": "KogMaw",
+  "rek'sai": "RekSai",
+  "vel'koz": "Velkoz",
+  "cho'gath": "Chogath",
+  "leblanc": "Leblanc",
+  "bel'veth": "Belveth",
+  "renata glasc": "Renata",
+  "ksante": "KSante"
+};
+
+let championList = [];
+let selectedRoles = new Set();
+let usedChampionIds = new Set();
+let currentChampionId = null;
+let rouletteBusy = false;
+let spinTimer = null;
+let dataDragonVersion = FALLBACK_DDRAGON_VERSION;
+
+function normalized(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
-/* =========================================================
-   INICIALIZAÇÃO
-========================================================= */
+function getDataDragonChampionId(champion) {
+  const normalizedName = normalized(champion.name);
+  const fixedId = CHAMPION_ID_FIXES[normalizedName];
+
+  if (fixedId) return fixedId;
+
+  /*
+   * Para os demais campeões, usa o ID textual fornecido pelo catálogo.
+   * Não use champion.key aqui: esse campo pode ser numérico.
+   */
+  return String(champion.id || champion.name || "").trim();
+}
+
+function createChampionImageUrl(champion, version = dataDragonVersion) {
+  const championId = getDataDragonChampionId(champion);
+
+  if (!championId || !version) return "";
+
+  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${encodeURIComponent(championId)}.png`;
+}
+
+function championRoles(champion) {
+  const raw = Array.isArray(champion.roles)
+    ? champion.roles
+    : Array.isArray(champion.tags)
+      ? champion.tags
+      : [];
+
+  const values = raw.map(normalized);
+  const roles = [];
+
+  for (const [role, aliases] of Object.entries(ROLE_ALIASES)) {
+    if (aliases.some(alias => values.includes(alias))) {
+      roles.push(role);
+    }
+  }
+
+  const fields = {
+    tank: ["is_tank", "isTank"],
+    fighter: ["is_fighter", "isFighter"],
+    mage: ["is_mage", "isMage"],
+    assassin: ["is_assassin", "isAssassin"],
+    marksman: ["is_marksman", "isMarksman"],
+    support: ["is_support", "isSupport"]
+  };
+
+  for (const [role, fieldNames] of Object.entries(fields)) {
+    const enabled = fieldNames.some(field =>
+      champion[field] === true ||
+      champion[field] === 1 ||
+      champion[field] === "true"
+    );
+
+    if (enabled && !roles.includes(role)) {
+      roles.push(role);
+    }
+  }
+
+  return roles;
+}
+
+function normalizeChampionData(payload) {
+  const source = payload?.data ?? payload?.champions ?? payload;
+  const entries = Array.isArray(source)
+    ? source
+    : Object.values(source ?? {});
+
+  return entries
+    .filter(champion =>
+      champion &&
+      typeof champion === "object" &&
+      champion.name &&
+      (champion.id || champion.key || champion.hero_id) &&
+      (
+        champion.is_wr === undefined ||
+        champion.is_wr === true ||
+        champion.is_wr === 1 ||
+        champion.is_wr === "true"
+      )
+    )
+    .map(champion => ({
+      id: String(champion.id ?? champion.key ?? champion.hero_id),
+      key: String(champion.key ?? champion.id ?? champion.hero_id),
+      name: String(champion.name),
+      roles: championRoles(champion),
+      image: champion.image ?? champion.avatar ?? ""
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+/* Gera uma URL de imagem para cada campeão. */
+function prepareChampionImages() {
+  championList = championList.map(champion => ({
+    ...champion,
+    image: champion.image || createChampionImageUrl(champion)
+  }));
+}
+
+async function loadChampionCatalog() {
+  const button = $("#spinRoulette");
+  const status = $("#rouletteStatus");
+  const catalog = $("#championCatalog");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Carregando campeões...";
+  }
+
+  if (status) {
+    status.textContent = "Carregando catálogo de campeões...";
+  }
+
+  if (catalog) {
+    catalog.innerHTML =
+      '<p class="form-hint">Carregando catálogo de campeões...</p>';
+  }
+
+  try {
+    const response = await fetch(CHAMPION_DATA_URL, {
+      cache: "no-cache"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Catálogo respondeu HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    championList = normalizeChampionData(payload);
+
+    if (!championList.length) {
+      throw new Error("A API não retornou campeões de Wild Rift válidos.");
+    }
+
+    /*
+     * A versão alternativa já está definida acima.
+     * Se a consulta falhar, a roleta ainda terá URLs para tentar carregar.
+     */
+    try {
+      const versionResponse = await fetch(
+        "https://ddragon.leagueoflegends.com/api/versions.json",
+        { cache: "no-cache" }
+      );
+
+      if (versionResponse.ok) {
+        const versions = await versionResponse.json();
+
+        if (Array.isArray(versions) && versions[0]) {
+          dataDragonVersion = String(versions[0]);
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "Usando versão alternativa do Data Dragon:",
+        dataDragonVersion,
+        error
+      );
+    }
+
+    prepareChampionImages();
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Girar roleta";
+    }
+
+    if (status) {
+      status.textContent =
+        `Catálogo carregado: ${championList.length} campeões encontrados.`;
+    }
+
+    renderChampionCatalog();
+  } catch (error) {
+    console.error("Erro ao carregar catálogo de Wild Rift:", error);
+
+    if (status) {
+      status.textContent =
+        "Não foi possível carregar os campeões. Confira a conexão e recarregue a página.";
+    }
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Catálogo indisponível";
+    }
+
+    if ($("#championCount")) {
+      $("#championCount").textContent = "Erro ao carregar";
+    }
+
+    if (catalog) {
+      catalog.innerHTML =
+        '<p class="form-hint">O serviço de dados está indisponível. Tente recarregar a página mais tarde.</p>';
+    }
+  }
+}
+
+function getFilteredChampions() {
+  const query = normalized($("#championSearch")?.value ?? "");
+
+  return championList.filter(champion =>
+    normalized(champion.name).includes(query) &&
+    (
+      selectedRoles.size === 0 ||
+      [...selectedRoles].some(role => champion.roles.includes(role))
+    )
+  );
+}
+
+function updateChampionCounts() {
+  const all = $("#championCount");
+  const filtered = $("#filteredChampionCount");
+  const catalog = $("#catalogCount");
+
+  const available = getFilteredChampions().filter(champion =>
+    !$("#avoidRepeat")?.checked ||
+    !usedChampionIds.has(champion.id)
+  );
+
+  if (all) all.textContent = `${championList.length} campeões`;
+  if (filtered) filtered.textContent = available.length;
+
+  if (catalog) {
+    catalog.textContent = `${getFilteredChampions().length} campeões`;
+  }
+}
+
+function renderChampionCatalog() {
+  const catalog = $("#championCatalog");
+  if (!catalog) return;
+
+  const filtered = getFilteredChampions();
+
+  if (!filtered.length) {
+    catalog.innerHTML =
+      '<p class="form-hint">Nenhum campeão encontrado com esses filtros.</p>';
+    updateChampionCounts();
+    return;
+  }
+
+  catalog.innerHTML = filtered.map(champion => {
+    const used = usedChampionIds.has(champion.id);
+    const selected = currentChampionId === champion.id;
+
+    const roles = champion.roles.length
+      ? champion.roles.map(role => ROLE_LABELS[role]).join(" · ")
+      : "Classe não identificada";
+
+    const image = champion.image
+      ? `
+        <img
+          src="${escapeHTML(champion.image)}"
+          alt="${escapeHTML(champion.name)}"
+          loading="lazy"
+          decoding="async"
+          onerror="this.onerror=null;this.style.display='none';"
+        >
+      `
+      : "";
+
+    return `
+      <article class="champion-card ${used ? "used" : ""} ${selected ? "selected" : ""}">
+        ${image}
+        <strong>${escapeHTML(champion.name)}</strong>
+        <span>${escapeHTML(roles)}</span>
+        ${used ? "<span>Sorteado</span>" : ""}
+      </article>
+    `;
+  }).join("");
+
+  updateChampionCounts();
+}
+
+function displayChampion(champion) {
+  currentChampionId = champion.id;
+
+  $("#roulettePlaceholder")?.classList.add("hidden");
+  $("#championResult")?.classList.remove("hidden");
+
+  const image = $("#championImage");
+
+  if (image) {
+    image.onerror = () => {
+      image.onerror = null;
+      image.style.visibility = "hidden";
+      console.error("Não foi possível carregar a imagem:", image.src);
+    };
+
+    image.alt = champion.name;
+    image.style.visibility = "visible";
+    image.src = champion.image || "";
+  }
+
+  if ($("#championName")) {
+    $("#championName").textContent = champion.name;
+  }
+
+  if ($("#championRoles")) {
+    $("#championRoles").textContent = champion.roles.length
+      ? champion.roles.map(role => ROLE_LABELS[role]).join(" · ")
+      : "Classe não identificada";
+  }
+
+  renderChampionCatalog();
+}
+
+function spinChampionRoulette() {
+  if (rouletteBusy) return;
+
+  const avoid = $("#avoidRepeat")?.checked ?? false;
+
+  const available = getFilteredChampions().filter(champion =>
+    !avoid || !usedChampionIds.has(champion.id)
+  );
+
+  if (!available.length) {
+    $("#rouletteStatus").textContent =
+      "Não há campeões disponíveis. Altere os filtros ou reinicie os sorteios.";
+    return;
+  }
+
+  rouletteBusy = true;
+
+  const button = $("#spinRoulette");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Girando...";
+  }
+
+  $("#rouletteStatus").textContent = "Sorteando campeão...";
+  $("#roulettePlaceholder")?.classList.add("hidden");
+  $("#championResult")?.classList.remove("hidden");
+
+  const start = performance.now();
+  const duration = 2400;
+
+  function tick(now) {
+    if (!rouletteBusy) return;
+
+    const progress = Math.min((now - start) / duration, 1);
+    const delay = 45 + Math.floor(progress * 180);
+
+    const preview = available[
+      Math.floor(Math.random() * available.length)
+    ];
+
+    if ($("#championName")) {
+      $("#championName").textContent = preview.name;
+    }
+
+    if ($("#championRoles")) {
+      $("#championRoles").textContent = preview.roles.length
+        ? preview.roles.map(role => ROLE_LABELS[role]).join(" · ")
+        : "Classe não identificada";
+    }
+
+    const image = $("#championImage");
+
+    if (image) {
+      image.onerror = () => {
+        image.onerror = null;
+        image.style.visibility = "hidden";
+      };
+
+      image.alt = preview.name;
+      image.style.visibility = "visible";
+      image.src = preview.image || "";
+    }
+
+    if (progress >= 1) {
+      const winner = available[
+        Math.floor(Math.random() * available.length)
+      ];
+
+      displayChampion(winner);
+
+      if (avoid) {
+        usedChampionIds.add(winner.id);
+      }
+
+      rouletteBusy = false;
+
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Girar novamente";
+      }
+
+      $("#rouletteStatus").textContent =
+        `Campeão sorteado: ${winner.name}.`;
+
+      renderChampionCatalog();
+      return;
+    }
+
+    spinTimer = setTimeout(() => requestAnimationFrame(tick), delay);
+  }
+
+  requestAnimationFrame(tick);
+}
+
+function resetChampionRoulette() {
+  if (rouletteBusy) {
+    showToast("Aguarde o fim do sorteio para reiniciar.");
+    return;
+  }
+
+  clearTimeout(spinTimer);
+
+  usedChampionIds.clear();
+  currentChampionId = null;
+
+  $("#championResult")?.classList.add("hidden");
+  $("#roulettePlaceholder")?.classList.remove("hidden");
+
+  const image = $("#championImage");
+
+  if (image) {
+    image.removeAttribute("src");
+    image.alt = "Ícone do campeão sorteado";
+    image.style.visibility = "hidden";
+  }
+
+  if ($("#championName")) $("#championName").textContent = "";
+  if ($("#championRoles")) $("#championRoles").textContent = "";
+
+  if ($("#rouletteStatus")) {
+    $("#rouletteStatus").textContent = "Sorteios reiniciados.";
+  }
+
+  renderChampionCatalog();
+}
+
+function initializeChampionRoulette() {
+  if (!$("#championRoulette")) return;
+
+  $("#championSearch")?.addEventListener("input", renderChampionCatalog);
+  $("#avoidRepeat")?.addEventListener("change", renderChampionCatalog);
+
+  $("#roleFilters")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-role]");
+
+    if (!button || rouletteBusy) return;
+
+    const role = button.dataset.role;
+
+    if (role === "all") {
+      selectedRoles.clear();
+    } else if (selectedRoles.has(role)) {
+      selectedRoles.delete(role);
+    } else {
+      selectedRoles.add(role);
+    }
+
+    document.querySelectorAll("#roleFilters [data-role]").forEach(item => {
+      const active = item.dataset.role === "all"
+        ? selectedRoles.size === 0
+        : selectedRoles.has(item.dataset.role);
+
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+
+    renderChampionCatalog();
+  });
+
+  $("#spinRoulette")?.addEventListener("click", spinChampionRoulette);
+  $("#resetRoulette")?.addEventListener("click", resetChampionRoulette);
+
+  loadChampionCatalog();
+}
+
+/* INICIALIZAÇÃO */
 
 function initialize() {
-  if (initialized) {
-    return;
-  }
-
+  if (initialized) return;
   initialized = true;
 
-  const playerForm = $("#playerForm");
-  const adminBtn = $("#adminBtn");
-  const logoutBtn = $("#logoutBtn");
-  const adminHistory = $("#adminHistory");
+  $("#playerForm")?.addEventListener("submit", addPlayer);
+  $("#adminBtn")?.addEventListener("click", toggleAdmin);
+  $("#logoutBtn")?.addEventListener("click", closeAdmin);
 
-  if (playerForm) {
-    playerForm.addEventListener("submit", addPlayer);
-  }
+  $("#adminHistory")?.addEventListener("click", handleAdminClick);
+  $("#adminHistory")?.addEventListener("submit", handleManualPoints);
 
-  if (adminBtn) {
-    adminBtn.addEventListener("click", toggleAdmin);
-  }
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", closeAdmin);
-  }
-
-  if (adminHistory) {
-    adminHistory.addEventListener(
-      "click",
-      handleAdminHistoryClick
-    );
-
-    adminHistory.addEventListener(
-      "submit",
-      handleManualPointsSubmit
-    );
-  }
-
+  initializeChampionRoulette();
   startPlayersListener();
   listenToAuthentication();
 }
