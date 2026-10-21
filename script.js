@@ -1,11 +1,13 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+
 import {
   getAuth,
   signInWithEmailAndPassword,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+
 import {
   getFirestore,
   collection,
@@ -18,7 +20,10 @@ import {
   runTransaction
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-/* FIREBASE */
+/* =========================================================
+   FIREBASE
+========================================================= */
+
 const firebaseConfig = {
   apiKey: "AIzaSyBJrLkfW9aAVJnrcB7hvYFbsJURBGJQU8M",
   authDomain: "duelosrankeadoswr.firebaseapp.com",
@@ -30,6 +35,7 @@ const firebaseConfig = {
 };
 
 const ADMIN_UID = "U7ohORMjr1O9Ubby2WFMztAe8Au2";
+
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
@@ -45,6 +51,10 @@ let toastTimeout = null;
 let unsubscribePlayers = null;
 
 const $ = selector => document.querySelector(selector);
+
+/* =========================================================
+   UTILITÁRIOS
+========================================================= */
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -62,9 +72,13 @@ function normalizeNumber(value) {
 }
 
 function generatePlayerId() {
-  return crypto?.randomUUID
-    ? crypto.randomUUID()
-    : `player_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `player_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
 }
 
 function getPlayer(id) {
@@ -81,6 +95,7 @@ function showToast(message, duration = 3200) {
 
   toast.textContent = message;
   toast.classList.add("show");
+
   clearTimeout(toastTimeout);
 
   toastTimeout = setTimeout(() => {
@@ -89,7 +104,11 @@ function showToast(message, duration = 3200) {
 }
 
 function requireAdmin() {
-  if (!auth.currentUser || auth.currentUser.uid !== ADMIN_UID || !isAdmin) {
+  if (
+    !auth.currentUser ||
+    auth.currentUser.uid !== ADMIN_UID ||
+    !isAdmin
+  ) {
     showToast("Você não tem permissão para realizar essa ação.");
     return false;
   }
@@ -97,7 +116,90 @@ function requireAdmin() {
   return true;
 }
 
-/* RANKING */
+/* =========================================================
+   NAVEGAÇÃO
+   UM ÚNICO BOTÃO PARA ALTERNAR AS PÁGINAS
+========================================================= */
+
+function setActivePage(pageId) {
+  const validPages = ["rankingPage", "roulettePage"];
+
+  if (!validPages.includes(pageId)) {
+    pageId = "rankingPage";
+  }
+
+  document.querySelectorAll(".page-section").forEach(section => {
+    section.classList.toggle("hidden", section.id !== pageId);
+  });
+
+  const button = $("#pageSwitchBtn");
+
+  if (!button) {
+    console.warn("O botão #pageSwitchBtn não foi encontrado.");
+    return;
+  }
+
+  const showingRanking = pageId === "rankingPage";
+
+  // O botão sempre aponta para a outra página.
+  button.dataset.page = showingRanking
+    ? "roulettePage"
+    : "rankingPage";
+
+  const label = button.querySelector(".switch-label");
+  const icon = button.querySelector(".switch-icon");
+
+  if (label) {
+    label.textContent = showingRanking
+      ? "ROLETA DE CAMPEÕES"
+      : "VOLTAR AO RANKING";
+  } else {
+    button.textContent = showingRanking
+      ? "ROLETA DE CAMPEÕES"
+      : "VOLTAR AO RANKING";
+  }
+
+  if (icon) {
+    icon.textContent = showingRanking ? "◉" : "↩";
+  }
+
+  button.setAttribute(
+    "aria-label",
+    showingRanking
+      ? "Ir para a roleta de campeões"
+      : "Voltar ao Ranking X1"
+  );
+
+  button.setAttribute("aria-pressed", "false");
+}
+
+function initializeTabs() {
+  const button = $("#pageSwitchBtn");
+
+  if (!button) {
+    console.error(
+      "Navegação não inicializada: adicione o botão #pageSwitchBtn ao HTML."
+    );
+    return;
+  }
+
+  // Evita adicionar o evento mais de uma vez.
+  if (button.dataset.navigationInitialized !== "true") {
+    button.addEventListener("click", () => {
+      const destination = button.dataset.page;
+      setActivePage(destination);
+    });
+
+    button.dataset.navigationInitialized = "true";
+  }
+
+  // O ranking é sempre a página inicial.
+  setActivePage("rankingPage");
+}
+
+/* =========================================================
+   RANKING
+========================================================= */
 
 function getPlayerStats() {
   const stats = {};
@@ -112,9 +214,14 @@ function getPlayerStats() {
       wins,
       losses,
       manualPoints,
-      points: wins * POINTS_PER_WIN - losses * POINTS_PER_LOSS + manualPoints,
+      points:
+        wins * POINTS_PER_WIN -
+        losses * POINTS_PER_LOSS +
+        manualPoints,
       totalMatches,
-      accuracy: totalMatches ? wins / totalMatches * 100 : 0
+      accuracy: totalMatches
+        ? (wins / totalMatches) * 100
+        : 0
     };
   });
 
@@ -126,15 +233,18 @@ function sortPlayers() {
     const A = data.stats[a.id];
     const B = data.stats[b.id];
 
-    return B.points - A.points ||
+    return (
+      B.points - A.points ||
       B.wins - A.wins ||
       A.losses - B.losses ||
-      a.name.localeCompare(b.name, "pt-BR");
+      a.name.localeCompare(b.name, "pt-BR")
+    );
   });
 }
 
 function renderRanking() {
   const body = $("#rankingBody");
+
   if (!body) return;
 
   const sorted = sortPlayers();
@@ -145,18 +255,26 @@ function renderRanking() {
     return `
       <tr>
         <td>
-          <span class="ranking-position position-${i + 1}">${i + 1}</span>
+          <span class="ranking-position position-${i + 1}">
+            ${i + 1}
+          </span>
         </td>
+
         <td>
           <div class="player-cell">
             <strong>${escapeHTML(player.name)}</strong>
           </div>
         </td>
-        <td><strong class="points-value">${s.points}</strong></td>
+
+        <td>
+          <strong class="points-value">${s.points}</strong>
+        </td>
+
         <td>
           <span class="wins-value">${s.wins}</span> /
           <span class="losses-value">${s.losses}</span>
         </td>
+
         <td>${s.accuracy.toFixed(1)}%</td>
       </tr>
     `;
@@ -179,20 +297,28 @@ function renderRanking() {
   }
 
   if ($("#emptyRanking")) {
-    $("#emptyRanking").classList.toggle("hidden", sorted.length > 0);
+    $("#emptyRanking").classList.toggle(
+      "hidden",
+      sorted.length > 0
+    );
   }
 
-  if (sorted.length) {
-    $("#leaderName").textContent = sorted[0].name;
-    $("#leaderPoints").textContent = `${data.stats[sorted[0].id].points} pontos`;
-  } else {
-    $("#leaderName").textContent = "—";
-    $("#leaderPoints").textContent = "0 pontos";
+  if ($("#leaderName")) {
+    $("#leaderName").textContent = sorted.length
+      ? sorted[0].name
+      : "—";
+  }
+
+  if ($("#leaderPoints")) {
+    $("#leaderPoints").textContent = sorted.length
+      ? `${data.stats[sorted[0].id].points} pontos`
+      : "0 pontos";
   }
 }
 
 function renderAdminHistory() {
   const host = $("#adminHistory");
+
   if (!host) return;
 
   const sorted = sortPlayers();
@@ -225,25 +351,53 @@ function renderAdminHistory() {
         </div>
 
         <div class="individual-player-actions">
-          <button type="button" class="primary-btn"
-            data-action="win" data-player-id="${id}">+ Vitória</button>
+          <button
+            type="button"
+            class="primary-btn"
+            data-action="win"
+            data-player-id="${id}"
+          >+ Vitória</button>
 
-          <button type="button" class="secondary-btn"
-            data-action="loss" data-player-id="${id}">− Derrota</button>
+          <button
+            type="button"
+            class="secondary-btn"
+            data-action="loss"
+            data-player-id="${id}"
+          >− Derrota</button>
 
-          <button type="button" class="edit-player-btn"
-            data-action="edit-name" data-player-id="${id}">Alterar nome</button>
+          <button
+            type="button"
+            class="edit-player-btn"
+            data-action="edit-name"
+            data-player-id="${id}"
+          >Alterar nome</button>
 
-          <button type="button" class="remove-player-btn"
-            data-action="remove-player" data-player-id="${id}">Remover jogador</button>
+          <button
+            type="button"
+            class="remove-player-btn"
+            data-action="remove-player"
+            data-player-id="${id}"
+          >Remover jogador</button>
         </div>
 
         <form class="manual-points-form" data-player-id="${id}">
-          <label for="manual-points-${id}">Adicionar ou retirar pontos</label>
+          <label for="manual-points-${id}">
+            Adicionar ou retirar pontos
+          </label>
+
           <div class="manual-points-controls">
-            <input id="manual-points-${id}" name="manualPoints"
-              type="number" step="1" required placeholder="Ex.: 50 ou -20">
-            <button class="primary-btn" type="submit">Aplicar</button>
+            <input
+              id="manual-points-${id}"
+              name="manualPoints"
+              type="number"
+              step="1"
+              required
+              placeholder="Ex.: 50 ou -20"
+            >
+
+            <button class="primary-btn" type="submit">
+              Aplicar
+            </button>
           </div>
         </form>
       </div>
@@ -257,24 +411,36 @@ function renderAll() {
   renderAdminHistory();
 }
 
-/* ADMINISTRAÇÃO DE JOGADORES */
+/* =========================================================
+   ADMINISTRAÇÃO DE JOGADORES
+========================================================= */
 
 async function addPlayer(event) {
   event.preventDefault();
+
   if (!requireAdmin()) return;
 
   const input = $("#playerName");
   const name = input?.value.trim();
 
-  if (!name) return showToast("Digite o nome do jogador.");
-  if (name.length > 24) {
-    return showToast("O nome pode ter no máximo 24 caracteres.");
+  if (!name) {
+    showToast("Digite o nome do jogador.");
+    return;
   }
 
-  if (data.players.some(p =>
-    p.name.trim().toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR")
-  )) {
-    return showToast("Já existe um jogador com esse nome.");
+  if (name.length > 24) {
+    showToast("O nome pode ter no máximo 24 caracteres.");
+    return;
+  }
+
+  const duplicated = data.players.some(player =>
+    player.name.trim().toLocaleLowerCase("pt-BR") ===
+    name.toLocaleLowerCase("pt-BR")
+  );
+
+  if (duplicated) {
+    showToast("Já existe um jogador com esse nome.");
+    return;
   }
 
   try {
@@ -297,23 +463,40 @@ async function renamePlayer(id) {
   if (!requireAdmin()) return;
 
   const player = getPlayer(id);
-  if (!player) return showToast("Jogador não encontrado.");
 
-  const value = prompt("Digite o novo nome do jogador:", player.name);
+  if (!player) {
+    showToast("Jogador não encontrado.");
+    return;
+  }
+
+  const value = prompt(
+    "Digite o novo nome do jogador:",
+    player.name
+  );
+
   if (value === null) return;
 
   const name = value.trim();
 
-  if (!name) return showToast("O nome do jogador não pode ficar vazio.");
-  if (name.length > 24) {
-    return showToast("O nome pode ter no máximo 24 caracteres.");
+  if (!name) {
+    showToast("O nome do jogador não pode ficar vazio.");
+    return;
   }
 
-  if (data.players.some(p =>
+  if (name.length > 24) {
+    showToast("O nome pode ter no máximo 24 caracteres.");
+    return;
+  }
+
+  const duplicated = data.players.some(p =>
     p.id !== id &&
-    p.name.trim().toLocaleLowerCase("pt-BR") === name.toLocaleLowerCase("pt-BR")
-  )) {
-    return showToast("Já existe outro jogador com esse nome.");
+    p.name.trim().toLocaleLowerCase("pt-BR") ===
+    name.toLocaleLowerCase("pt-BR")
+  );
+
+  if (duplicated) {
+    showToast("Já existe outro jogador com esse nome.");
+    return;
   }
 
   try {
@@ -329,18 +512,27 @@ async function removePlayer(id) {
   if (!requireAdmin()) return;
 
   const player = getPlayer(id);
-  if (!player) return showToast("Jogador não encontrado.");
 
-  if (!confirm(`Tem certeza que deseja remover "${player.name}"? Esta ação não pode ser desfeita.`)) {
+  if (!player) {
+    showToast("Jogador não encontrado.");
     return;
   }
+
+  const confirmed = confirm(
+    `Tem certeza que deseja remover "${player.name}"? Esta ação não pode ser desfeita.`
+  );
+
+  if (!confirmed) return;
 
   try {
     await deleteDoc(doc(db, "players", id));
     showToast(`Jogador ${player.name} removido.`);
   } catch (error) {
     console.error(error);
-    showToast("Não foi possível remover o jogador. Verifique as permissões do Firebase.");
+
+    showToast(
+      "Não foi possível remover o jogador. Verifique as permissões do Firebase."
+    );
   }
 }
 
@@ -348,7 +540,12 @@ async function registerResult(id, result) {
   if (!requireAdmin()) return;
 
   const player = getPlayer(id);
-  if (!player) return showToast("Jogador não encontrado.");
+
+  if (!player) {
+    showToast("Jogador não encontrado.");
+    return;
+  }
+
   if (!["win", "loss"].includes(result)) return;
 
   try {
@@ -371,12 +568,17 @@ async function addManualPoints(id, amount) {
   if (!requireAdmin()) return;
 
   const player = getPlayer(id);
-  if (!player) return showToast("Jogador não encontrado.");
+
+  if (!player) {
+    showToast("Jogador não encontrado.");
+    return;
+  }
 
   const points = Number(amount);
 
   if (!Number.isSafeInteger(points) || points === 0) {
-    return showToast("Informe um número inteiro diferente de zero.");
+    showToast("Informe um número inteiro diferente de zero.");
+    return;
   }
 
   try {
@@ -384,10 +586,13 @@ async function addManualPoints(id, amount) {
       const ref = doc(db, "players", id);
       const snapshot = await transaction.get(ref);
 
-      if (!snapshot.exists()) throw new Error("PLAYER_NOT_FOUND");
+      if (!snapshot.exists()) {
+        throw new Error("PLAYER_NOT_FOUND");
+      }
 
       transaction.update(ref, {
-        manualPoints: normalizeNumber(snapshot.data().manualPoints) + points
+        manualPoints:
+          normalizeNumber(snapshot.data().manualPoints) + points
       });
     });
 
@@ -401,32 +606,67 @@ async function addManualPoints(id, amount) {
   }
 }
 
-/* LOGIN ADMINISTRATIVO */
+/* =========================================================
+   LOGIN ADMINISTRATIVO
+========================================================= */
 
 function createAdminLogin() {
   if ($("#adminLoginOverlay")) return;
 
   const overlay = document.createElement("div");
+
   overlay.id = "adminLoginOverlay";
   overlay.className = "login-overlay";
 
   overlay.innerHTML = `
-    <div class="login-modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-      <button type="button" class="login-close" id="closeLoginBtn" aria-label="Fechar">×</button>
+    <div
+      class="login-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="loginTitle"
+    >
+      <button
+        type="button"
+        class="login-close"
+        id="closeLoginBtn"
+        aria-label="Fechar"
+      >×</button>
+
       <span class="eyebrow">ÁREA RESTRITA</span>
       <h2 id="loginTitle">Login administrativo</h2>
-      <p class="form-hint">Entre com as credenciais do administrador.</p>
+
+      <p class="form-hint">
+        Entre com as credenciais do administrador.
+      </p>
 
       <form id="adminLoginForm">
         <label for="adminEmail">E-mail</label>
-        <input id="adminEmail" name="email" type="email"
-          autocomplete="username" placeholder="Seu e-mail" required>
+
+        <input
+          id="adminEmail"
+          name="email"
+          type="email"
+          autocomplete="username"
+          placeholder="Seu e-mail"
+          required
+        >
 
         <label for="adminPassword">Senha</label>
-        <input id="adminPassword" name="password" type="password"
-          autocomplete="current-password" placeholder="Sua senha" required>
 
-        <button class="primary-btn" id="loginSubmitBtn" type="submit">Entrar</button>
+        <input
+          id="adminPassword"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Sua senha"
+          required
+        >
+
+        <button
+          class="primary-btn"
+          id="loginSubmitBtn"
+          type="submit"
+        >Entrar</button>
       </form>
 
       <p id="loginError" class="login-error" aria-live="polite"></p>
@@ -435,10 +675,14 @@ function createAdminLogin() {
 
   document.body.appendChild(overlay);
 
-  $("#closeLoginBtn").addEventListener("click", () => overlay.remove());
+  $("#closeLoginBtn").addEventListener("click", () => {
+    overlay.remove();
+  });
 
   overlay.addEventListener("click", event => {
-    if (event.target === overlay) overlay.remove();
+    if (event.target === overlay) {
+      overlay.remove();
+    }
   });
 
   $("#adminLoginForm").addEventListener("submit", async event => {
@@ -454,19 +698,30 @@ function createAdminLogin() {
     errorMessage.textContent = "";
 
     try {
-      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
       if (credential.user.uid !== ADMIN_UID) {
         await signOut(auth);
-        errorMessage.textContent = "Esta conta não tem permissão de administrador.";
+
+        errorMessage.textContent =
+          "Esta conta não tem permissão de administrador.";
+
         return;
       }
 
+      setActivePage("rankingPage");
       overlay.remove();
+
       showToast("Login administrativo realizado com sucesso.");
     } catch (error) {
       console.error(error);
-      errorMessage.textContent = "Não foi possível entrar. Confira o e-mail e a senha.";
+
+      errorMessage.textContent =
+        "Não foi possível entrar. Confira o e-mail e a senha.";
     } finally {
       if (document.body.contains(button)) {
         button.disabled = false;
@@ -477,6 +732,8 @@ function createAdminLogin() {
 }
 
 function toggleAdmin() {
+  setActivePage("rankingPage");
+
   if (isAdmin && auth.currentUser?.uid === ADMIN_UID) {
     $("#adminPanel")?.classList.toggle("hidden");
   } else {
@@ -487,11 +744,16 @@ function toggleAdmin() {
 async function closeAdmin() {
   try {
     await signOut(auth);
+    showToast("Sessão encerrada.");
   } catch (error) {
     console.error(error);
     showToast("Não foi possível encerrar a sessão.");
   }
 }
+
+/* =========================================================
+   SINCRONIZAÇÃO COM FIRESTORE
+========================================================= */
 
 function startPlayersListener() {
   unsubscribePlayers?.();
@@ -514,8 +776,11 @@ function startPlayersListener() {
       renderAll();
     },
     error => {
-      console.error(error);
-      showToast("Erro ao sincronizar os jogadores com o Firebase.");
+      console.error("Erro no Firestore:", error);
+
+      showToast(
+        "Erro ao sincronizar os jogadores com o Firebase."
+      );
     }
   );
 }
@@ -525,15 +790,23 @@ function listenToAuthentication() {
     if (user && user.uid === ADMIN_UID) {
       isAdmin = true;
 
-      if ($("#adminBtn")) $("#adminBtn").textContent = "Painel ADM";
+      if ($("#adminBtn")) {
+        $("#adminBtn").textContent = "Painel ADM";
+      }
+
       $("#logoutBtn")?.classList.remove("hidden");
       $("#adminPanel")?.classList.remove("hidden");
+
+      setActivePage("rankingPage");
       return;
     }
 
     isAdmin = false;
 
-    if ($("#adminBtn")) $("#adminBtn").textContent = "Login";
+    if ($("#adminBtn")) {
+      $("#adminBtn").textContent = "Login";
+    }
+
     $("#adminPanel")?.classList.add("hidden");
     $("#logoutBtn")?.classList.add("hidden");
 
@@ -548,7 +821,10 @@ function listenToAuthentication() {
 }
 
 function handleAdminClick(event) {
-  const button = event.target.closest("button[data-action][data-player-id]");
+  const button = event.target.closest(
+    "button[data-action][data-player-id]"
+  );
+
   if (!button) return;
 
   const { playerId, action } = button.dataset;
@@ -564,12 +840,16 @@ function handleAdminClick(event) {
 
 function handleManualPoints(event) {
   const form = event.target.closest(".manual-points-form");
+
   if (!form) return;
 
   event.preventDefault();
 
   const input = form.querySelector('[name="manualPoints"]');
-  addManualPoints(form.dataset.playerId, Number(input.value));
+
+  if (!input) return;
+
+  addManualPoints(form.dataset.playerId, input.value);
 }
 
 /* =========================================================
@@ -579,7 +859,6 @@ function handleManualPoints(event) {
 const CHAMPION_DATA_URL =
   "https://ry2x.github.io/WildRift-Merged-Champion-Data/data_pt_BR.json";
 
-/* Versão alternativa para quando a API de versões estiver indisponível. */
 const FALLBACK_DDRAGON_VERSION = "15.20.1";
 
 const ROLE_LABELS = {
@@ -600,7 +879,6 @@ const ROLE_ALIASES = {
   support: ["support", "suporte"]
 };
 
-/* Alguns nomes do catálogo diferem dos IDs do Data Dragon. */
 const CHAMPION_ID_FIXES = {
   "wukong": "MonkeyKing",
   "nunu & willump": "Nunu",
@@ -640,19 +918,21 @@ function getDataDragonChampionId(champion) {
 
   if (fixedId) return fixedId;
 
-  /*
-   * Para os demais campeões, usa o ID textual fornecido pelo catálogo.
-   * Não use champion.key aqui: esse campo pode ser numérico.
-   */
   return String(champion.id || champion.name || "").trim();
 }
 
-function createChampionImageUrl(champion, version = dataDragonVersion) {
+function createChampionImageUrl(
+  champion,
+  version = dataDragonVersion
+) {
   const championId = getDataDragonChampionId(champion);
 
   if (!championId || !version) return "";
 
-  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${encodeURIComponent(championId)}.png`;
+  return (
+    `https://ddragon.leagueoflegends.com/cdn/` +
+    `${version}/img/champion/${encodeURIComponent(championId)}.png`
+  );
 }
 
 function championRoles(champion) {
@@ -697,6 +977,7 @@ function championRoles(champion) {
 
 function normalizeChampionData(payload) {
   const source = payload?.data ?? payload?.champions ?? payload;
+
   const entries = Array.isArray(source)
     ? source
     : Object.values(source ?? {});
@@ -715,8 +996,16 @@ function normalizeChampionData(payload) {
       )
     )
     .map(champion => ({
-      id: String(champion.id ?? champion.key ?? champion.hero_id),
-      key: String(champion.key ?? champion.id ?? champion.hero_id),
+      id: String(
+        champion.id ??
+        champion.key ??
+        champion.hero_id
+      ),
+      key: String(
+        champion.key ??
+        champion.id ??
+        champion.hero_id
+      ),
       name: String(champion.name),
       roles: championRoles(champion),
       image: champion.image ?? champion.avatar ?? ""
@@ -724,7 +1013,6 @@ function normalizeChampionData(payload) {
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 }
 
-/* Gera uma URL de imagem para cada campeão. */
 function prepareChampionImages() {
   championList = championList.map(champion => ({
     ...champion,
@@ -764,13 +1052,11 @@ async function loadChampionCatalog() {
     championList = normalizeChampionData(payload);
 
     if (!championList.length) {
-      throw new Error("A API não retornou campeões de Wild Rift válidos.");
+      throw new Error(
+        "A API não retornou campeões válidos no formato esperado."
+      );
     }
 
-    /*
-     * A versão alternativa já está definida acima.
-     * Se a consulta falhar, a roleta ainda terá URLs para tentar carregar.
-     */
     try {
       const versionResponse = await fetch(
         "https://ddragon.leagueoflegends.com/api/versions.json",
@@ -806,11 +1092,11 @@ async function loadChampionCatalog() {
 
     renderChampionCatalog();
   } catch (error) {
-    console.error("Erro ao carregar catálogo de Wild Rift:", error);
+    console.error("Erro ao carregar catálogo:", error);
 
     if (status) {
       status.textContent =
-        "Não foi possível carregar os campeões. Confira a conexão e recarregue a página.";
+        "Não foi possível carregar os campeões. Confira a conexão e tente novamente.";
     }
 
     if (button) {
@@ -824,7 +1110,7 @@ async function loadChampionCatalog() {
 
     if (catalog) {
       catalog.innerHTML =
-        '<p class="form-hint">O serviço de dados está indisponível. Tente recarregar a página mais tarde.</p>';
+        '<p class="form-hint">O catálogo está indisponível ou retornou dados incompatíveis. Tente recarregar a página.</p>';
     }
   }
 }
@@ -836,7 +1122,9 @@ function getFilteredChampions() {
     normalized(champion.name).includes(query) &&
     (
       selectedRoles.size === 0 ||
-      [...selectedRoles].some(role => champion.roles.includes(role))
+      [...selectedRoles].some(role =>
+        champion.roles.includes(role)
+      )
     )
   );
 }
@@ -846,21 +1134,29 @@ function updateChampionCounts() {
   const filtered = $("#filteredChampionCount");
   const catalog = $("#catalogCount");
 
-  const available = getFilteredChampions().filter(champion =>
+  const filteredChampions = getFilteredChampions();
+
+  const available = filteredChampions.filter(champion =>
     !$("#avoidRepeat")?.checked ||
     !usedChampionIds.has(champion.id)
   );
 
-  if (all) all.textContent = `${championList.length} campeões`;
-  if (filtered) filtered.textContent = available.length;
+  if (all) {
+    all.textContent = `${championList.length} campeões`;
+  }
+
+  if (filtered) {
+    filtered.textContent = available.length;
+  }
 
   if (catalog) {
-    catalog.textContent = `${getFilteredChampions().length} campeões`;
+    catalog.textContent = `${filteredChampions.length} campeões`;
   }
 }
 
 function renderChampionCatalog() {
   const catalog = $("#championCatalog");
+
   if (!catalog) return;
 
   const filtered = getFilteredChampions();
@@ -868,6 +1164,7 @@ function renderChampionCatalog() {
   if (!filtered.length) {
     catalog.innerHTML =
       '<p class="form-hint">Nenhum campeão encontrado com esses filtros.</p>';
+
     updateChampionCounts();
     return;
   }
@@ -917,6 +1214,7 @@ function displayChampion(champion) {
     image.onerror = () => {
       image.onerror = null;
       image.style.visibility = "hidden";
+
       console.error("Não foi possível carregar a imagem:", image.src);
     };
 
@@ -941,6 +1239,11 @@ function displayChampion(champion) {
 function spinChampionRoulette() {
   if (rouletteBusy) return;
 
+  if (!championList.length) {
+    showToast("O catálogo de campeões ainda não está disponível.");
+    return;
+  }
+
   const avoid = $("#avoidRepeat")?.checked ?? false;
 
   const available = getFilteredChampions().filter(champion =>
@@ -948,8 +1251,13 @@ function spinChampionRoulette() {
   );
 
   if (!available.length) {
-    $("#rouletteStatus").textContent =
-      "Não há campeões disponíveis. Altere os filtros ou reinicie os sorteios.";
+    const status = $("#rouletteStatus");
+
+    if (status) {
+      status.textContent =
+        "Não há campeões disponíveis. Altere os filtros ou reinicie os sorteios.";
+    }
+
     return;
   }
 
@@ -962,7 +1270,10 @@ function spinChampionRoulette() {
     button.textContent = "Girando...";
   }
 
-  $("#rouletteStatus").textContent = "Sorteando campeão...";
+  if ($("#rouletteStatus")) {
+    $("#rouletteStatus").textContent = "Sorteando campeão...";
+  }
+
   $("#roulettePlaceholder")?.classList.add("hidden");
   $("#championResult")?.classList.remove("hidden");
 
@@ -1020,14 +1331,18 @@ function spinChampionRoulette() {
         button.textContent = "Girar novamente";
       }
 
-      $("#rouletteStatus").textContent =
-        `Campeão sorteado: ${winner.name}.`;
+      if ($("#rouletteStatus")) {
+        $("#rouletteStatus").textContent =
+          `Campeão sorteado: ${winner.name}.`;
+      }
 
       renderChampionCatalog();
       return;
     }
 
-    spinTimer = setTimeout(() => requestAnimationFrame(tick), delay);
+    spinTimer = setTimeout(() => {
+      requestAnimationFrame(tick);
+    }, delay);
   }
 
   requestAnimationFrame(tick);
@@ -1055,21 +1370,41 @@ function resetChampionRoulette() {
     image.style.visibility = "hidden";
   }
 
-  if ($("#championName")) $("#championName").textContent = "";
-  if ($("#championRoles")) $("#championRoles").textContent = "";
+  if ($("#championName")) {
+    $("#championName").textContent = "";
+  }
+
+  if ($("#championRoles")) {
+    $("#championRoles").textContent = "";
+  }
 
   if ($("#rouletteStatus")) {
     $("#rouletteStatus").textContent = "Sorteios reiniciados.";
+  }
+
+  const button = $("#spinRoulette");
+
+  if (button && championList.length) {
+    button.disabled = false;
+    button.textContent = "Girar roleta";
   }
 
   renderChampionCatalog();
 }
 
 function initializeChampionRoulette() {
-  if (!$("#championRoulette")) return;
+  if (!$("#championRoulette")) {
+    console.warn("A seção #championRoulette não foi encontrada.");
+    return;
+  }
 
-  $("#championSearch")?.addEventListener("input", renderChampionCatalog);
-  $("#avoidRepeat")?.addEventListener("change", renderChampionCatalog);
+  $("#championSearch")?.addEventListener("input", () => {
+    renderChampionCatalog();
+  });
+
+  $("#avoidRepeat")?.addEventListener("change", () => {
+    renderChampionCatalog();
+  });
 
   $("#roleFilters")?.addEventListener("click", event => {
     const button = event.target.closest("[data-role]");
@@ -1098,23 +1433,38 @@ function initializeChampionRoulette() {
     renderChampionCatalog();
   });
 
-  $("#spinRoulette")?.addEventListener("click", spinChampionRoulette);
-  $("#resetRoulette")?.addEventListener("click", resetChampionRoulette);
+  $("#spinRoulette")?.addEventListener(
+    "click",
+    spinChampionRoulette
+  );
+
+  $("#resetRoulette")?.addEventListener(
+    "click",
+    resetChampionRoulette
+  );
 
   loadChampionCatalog();
 }
 
-/* INICIALIZAÇÃO */
+/* =========================================================
+   INICIALIZAÇÃO
+========================================================= */
 
 function initialize() {
   if (initialized) return;
+
   initialized = true;
 
+  initializeTabs();
+
   $("#playerForm")?.addEventListener("submit", addPlayer);
+
   $("#adminBtn")?.addEventListener("click", toggleAdmin);
+
   $("#logoutBtn")?.addEventListener("click", closeAdmin);
 
   $("#adminHistory")?.addEventListener("click", handleAdminClick);
+
   $("#adminHistory")?.addEventListener("submit", handleManualPoints);
 
   initializeChampionRoulette();
